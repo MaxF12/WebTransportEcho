@@ -1,0 +1,6 @@
+# Merge this site block into the Caddyfile on the selected Bifrost node. The
+# common_headers snippet already exists in the Bifrost deployment.
+wttest.quicast.de {
+	import common_headers
+	reverse_proxy 127.0.0.1:8088
+}

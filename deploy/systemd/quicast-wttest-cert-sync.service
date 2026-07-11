@@ -1,0 +1,13 @@
+[Unit]
+Description=Synchronize renewed Caddy certificate to QUICast WebTransport test
+After=caddy.service
+Wants=caddy.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/quicast/webtransport-echo/deploy/bin/sync-certificate.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/etc/quicast/wttest

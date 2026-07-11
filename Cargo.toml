@@ -1,0 +1,26 @@
+[package]
+name = "webtransport-echo"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+bytes = "1"
+env_logger = "0.11"
+futures-util = "0.3"
+h3 = { version = "0.0.8", features = ["tracing"] }
+h3-quinn = "0.0.10"
+http = "1"
+log = "0.4"
+quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tokio-quiche = { path = "../../Multicast/quiche/tokio-quiche" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[[bin]]
+name = "tokio-quiche-wt-echo"
+path = "src/bin/tokio_quiche_wt_echo.rs"

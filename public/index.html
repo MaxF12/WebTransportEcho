@@ -1,0 +1,1607 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebTransport Echo Matrix</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f8fb;
+        color: #17202a;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        max-width: 1420px;
+        margin: 0 auto;
+        padding: 28px 20px 40px;
+      }
+
+      h1 {
+        margin: 0 0 20px;
+        font-size: 28px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .toolbar,
+      .panel {
+        border: 1px solid #d8dee8;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) repeat(3, auto);
+        gap: 12px;
+        align-items: end;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+        color: #4a5568;
+      }
+
+      input,
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        min-height: 38px;
+        border: 1px solid #c8d0dc;
+        border-radius: 6px;
+        padding: 0 10px;
+        background: #fff;
+        color: #17202a;
+      }
+
+      button {
+        min-height: 38px;
+        border: 1px solid #17202a;
+        border-radius: 6px;
+        padding: 0 14px;
+        background: #17202a;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #fff;
+        color: #17202a;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .capabilities,
+      .summary-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        gap: 1px;
+        margin: 0 0 14px;
+        border: 1px solid #d8dee8;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #d8dee8;
+      }
+
+      .fact,
+      .metric {
+        min-width: 0;
+        padding: 10px 12px;
+        background: #fff;
+      }
+
+      .fact span,
+      .metric span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 11px;
+      }
+
+      .fact strong,
+      .metric strong {
+        display: block;
+        overflow-wrap: anywhere;
+        font-size: 14px;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: progress;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 8px 12px;
+      }
+
+      .check {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-height: 28px;
+        font-size: 13px;
+        color: #17202a;
+      }
+
+      .status {
+        min-height: 24px;
+        margin: 0 0 12px;
+        color: #4a5568;
+        font-size: 13px;
+      }
+
+      .summary {
+        margin: 0 0 14px;
+      }
+
+      .summary[hidden],
+      .analysis[hidden],
+      .environment-note[hidden] {
+        display: none;
+      }
+
+      .conclusion {
+        margin: 0 0 12px;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .analysis {
+        margin: 0 0 14px;
+      }
+
+      h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      .cert-info {
+        margin: -4px 0 14px;
+      }
+
+      .warning {
+        color: #b45309;
+      }
+
+      .check.disabled {
+        opacity: 0.55;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 12px;
+        background: #fff;
+        border: 1px solid #d8dee8;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .results-table {
+        min-width: 1340px;
+      }
+
+      .analysis-table {
+        min-width: 760px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #e7ebf2;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+
+      th {
+        background: #eef2f7;
+        color: #2d3748;
+        font-weight: 650;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .ok {
+        color: #0f766e;
+        font-weight: 650;
+      }
+
+      .bad {
+        color: #b42318;
+        font-weight: 650;
+      }
+
+      .skip {
+        color: #6b7280;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 220px;
+        margin-top: 14px;
+        box-sizing: border-box;
+        border: 1px solid #c8d0dc;
+        border-radius: 8px;
+        padding: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        background: #fff;
+        color: #17202a;
+      }
+
+      @media (max-width: 780px) {
+        .toolbar,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background: #111827;
+          color: #e5e7eb;
+        }
+
+        .toolbar,
+        .panel,
+        .fact,
+        .metric,
+        table,
+        textarea,
+        input[type="text"],
+        input[type="number"] {
+          background: #182230;
+          border-color: #334155;
+          color: #e5e7eb;
+        }
+
+        th {
+          background: #223047;
+          color: #e5e7eb;
+        }
+
+        td,
+        th {
+          border-bottom-color: #334155;
+        }
+
+        label,
+        .status {
+          color: #b6c2d2;
+        }
+
+        button.secondary {
+          background: #182230;
+          color: #e5e7eb;
+          border-color: #94a3b8;
+        }
+
+        button {
+          border-color: #94a3b8;
+          background: #e5e7eb;
+          color: #111827;
+        }
+
+        .check {
+          color: #e5e7eb;
+        }
+
+        .capabilities,
+        .summary-metrics {
+          border-color: #334155;
+          background: #334155;
+        }
+
+        .fact span,
+        .metric span {
+          color: #94a3b8;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>WebTransport Echo Matrix</h1>
+
+      <section class="toolbar">
+        <label>
+          Target base
+          <input id="targetBase" type="text" value="https://localhost:9443" />
+        </label>
+        <label>
+          Timeout ms
+          <input id="timeoutMs" type="number" min="500" step="500" value="5000" />
+        </label>
+        <label>
+          Between cases ms
+          <input id="delayMs" type="number" min="0" step="50" value="150" />
+        </label>
+        <div class="actions">
+          <button id="runSelected">Run Selected</button>
+          <button id="runExhaustive">Run All Combinations</button>
+          <button id="stop" class="secondary" disabled>Stop</button>
+          <button id="copy" class="secondary">Copy JSON</button>
+        </div>
+      </section>
+
+      <section class="capabilities" aria-label="Browser capabilities">
+        <div class="fact"><span>Browser</span><strong id="browserName">Detecting</strong></div>
+        <div class="fact"><span>Secure context</span><strong id="secureContext">Detecting</strong></div>
+        <div class="fact"><span>WebTransport API</span><strong id="webTransportApi">Detecting</strong></div>
+        <div class="fact"><span>Exhaustive set</span><strong id="combinationCount">Calculating</strong></div>
+        <div class="fact"><span>Selected paths</span><strong id="pathCount">0</strong></div>
+      </section>
+
+      <p class="status cert-info" id="certInfo">Loading certificate mode</p>
+      <p class="status environment-note warning" id="environmentNote" hidden></p>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="checks" id="paths"></div>
+        </div>
+        <div class="panel">
+          <div class="checks" id="variants"></div>
+        </div>
+      </section>
+
+      <p class="status" id="status">Idle</p>
+
+      <section class="summary" id="summary" hidden>
+        <p class="conclusion" id="conclusion"></p>
+        <div class="summary-metrics" id="summaryMetrics"></div>
+      </section>
+
+      <section class="analysis" id="analysis" hidden>
+        <h2>Per-path option effects</h2>
+        <div class="table-wrap">
+          <table class="analysis-table">
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>Ready</th>
+                <th>Bidi</th>
+                <th>Uni</th>
+                <th>Datagram</th>
+                <th>Observed option signal</th>
+              </tr>
+            </thead>
+            <tbody id="analysisBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Options</th>
+              <th>Constructor</th>
+              <th>Ready</th>
+              <th>Protocol</th>
+              <th>Reliability</th>
+              <th>Datagram</th>
+              <th>Bidi</th>
+              <th>Uni</th>
+              <th>Closed</th>
+              <th>Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <textarea id="json" spellcheck="false"></textarea>
+    </main>
+
+    <script>
+      const PATHS = [
+        "/wt/basic",
+        "/wt/protocol",
+        "/wt/capsule",
+        "/wt/init",
+        "/wt/draft",
+        "/wt/h3-token",
+        "/wt/yggdrasil",
+        "/wt/auto",
+      ];
+
+      const VARIANTS = [
+        ["no options", undefined],
+        ["requireUnreliable", { requireUnreliable: true }],
+        ["no pooling + unreliable", { allowPooling: false, requireUnreliable: true }],
+        [
+          "low latency",
+          { allowPooling: false, requireUnreliable: true, congestionControl: "low-latency" },
+        ],
+        [
+          "protocol quicast-wt-v0",
+          {
+            allowPooling: false,
+            requireUnreliable: true,
+            congestionControl: "low-latency",
+            protocols: ["quicast-wt-v0"],
+          },
+        ],
+        ["cert hash + unreliable", { requireUnreliable: true, serverCertificateHashes: "auto" }],
+        [
+          "cert hash + protocol",
+          {
+            allowPooling: false,
+            requireUnreliable: true,
+            congestionControl: "low-latency",
+            protocols: ["quicast-wt-v0"],
+            serverCertificateHashes: "auto",
+          },
+        ],
+      ];
+
+      const EXHAUSTIVE_AXES = [
+        {
+          key: "allowPooling",
+          label: "allowPooling=false",
+          apply(options) {
+            options.allowPooling = false;
+          },
+        },
+        {
+          key: "requireUnreliable",
+          label: "requireUnreliable=true",
+          apply(options) {
+            options.requireUnreliable = true;
+          },
+        },
+        {
+          key: "congestionControl",
+          label: "congestionControl=low-latency",
+          apply(options) {
+            options.congestionControl = "low-latency";
+          },
+        },
+        {
+          key: "protocols",
+          label: "protocols=quicast-wt-v0",
+          apply(options) {
+            options.protocols = ["quicast-wt-v0"];
+          },
+        },
+      ];
+
+      const CERTIFICATE_AXIS = {
+        key: "serverCertificateHashes",
+        label: "serverCertificateHashes=sha-256",
+        apply(options) {
+          options.serverCertificateHashes = "auto";
+        },
+      };
+
+      const enc = new TextEncoder();
+      const dec = new TextDecoder();
+      let results = [];
+      let certHash = null;
+      let browserProfile = null;
+      let report = null;
+      let runtimeConfig = null;
+      let cancelRequested = false;
+      let activeTransport = null;
+
+      function renderChecks() {
+        const pathRoot = document.querySelector("#paths");
+        const variantRoot = document.querySelector("#variants");
+        pathRoot.innerHTML = PATHS.map(
+          (path) =>
+            `<label class="check"><input type="checkbox" name="path" value="${path}" checked />${path}</label>`,
+        ).join("");
+        variantRoot.innerHTML = VARIANTS.map(
+          ([name, options], index) => {
+            const checked = optionsNeedHash(options) ? "" : "checked";
+            return `<label class="check"><input type="checkbox" name="variant" value="${index}" ${checked} />${name}</label>`;
+          },
+        ).join("");
+      }
+
+      function applyQueryDefaults() {
+        const params = new URLSearchParams(location.search);
+        const target = params.get("target");
+        const timeout = params.get("timeout");
+        const delay = params.get("delay");
+        const paths = params.get("paths");
+        const variants = params.get("variants");
+
+        if (target) {
+          document.querySelector("#targetBase").value = target;
+        }
+
+        if (timeout) {
+          document.querySelector("#timeoutMs").value = timeout;
+        }
+
+        if (delay) {
+          document.querySelector("#delayMs").value = delay;
+        }
+
+        if (paths) {
+          const selectedPaths = new Set(paths.split(",").map((value) => value.trim()).filter(Boolean));
+          for (const input of document.querySelectorAll('input[name="path"]')) {
+            input.checked = selectedPaths.has(input.value);
+          }
+        }
+
+        if (variants) {
+          const selectedVariants = new Set(
+            variants.split(",").map((value) => value.trim()).filter(Boolean),
+          );
+          for (const input of document.querySelectorAll('input[name="variant"]')) {
+            input.checked = selectedVariants.has(input.value);
+          }
+        }
+      }
+
+      function selected(name) {
+        return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((el) => el.value);
+      }
+
+      function optionKeysFor(options) {
+        if (!options) return [];
+        return [...EXHAUSTIVE_AXES, CERTIFICATE_AXIS]
+          .filter((axis) => Object.prototype.hasOwnProperty.call(options, axis.key))
+          .map((axis) => axis.key);
+      }
+
+      function bitCount(value) {
+        let count = 0;
+        for (let current = value; current > 0; current >>= 1) {
+          count += current & 1;
+        }
+        return count;
+      }
+
+      function buildExhaustiveVariants(includeCertificateHash) {
+        const axes = includeCertificateHash
+          ? [...EXHAUSTIVE_AXES, CERTIFICATE_AXIS]
+          : [...EXHAUSTIVE_AXES];
+        const variants = [];
+
+        for (let mask = 0; mask < 2 ** axes.length; mask += 1) {
+          const options = {};
+          const labels = [];
+          const optionKeys = [];
+
+          axes.forEach((axis, index) => {
+            if ((mask & (1 << index)) === 0) return;
+            axis.apply(options);
+            labels.push(axis.label);
+            optionKeys.push(axis.key);
+          });
+
+          variants.push({
+            id: "exhaustive-" + mask.toString(16),
+            name: labels.length === 0 ? "no options" : labels.join(" + "),
+            options: labels.length === 0 ? undefined : options,
+            optionKeys,
+            mask,
+          });
+        }
+
+        return variants.sort((left, right) => {
+          if (includeCertificateHash) {
+            const leftUsesHash = left.optionKeys.includes(CERTIFICATE_AXIS.key);
+            const rightUsesHash = right.optionKeys.includes(CERTIFICATE_AXIS.key);
+            if (leftUsesHash !== rightUsesHash) return leftUsesHash ? -1 : 1;
+          }
+          return bitCount(left.mask) - bitCount(right.mask) || left.mask - right.mask;
+        });
+      }
+
+      function selectedCuratedVariants() {
+        return selected("variant").map(Number).map((index) => {
+          const [name, options] = VARIANTS[index];
+          return {
+            id: "curated-" + index,
+            name,
+            options,
+            optionKeys: optionKeysFor(options),
+          };
+        });
+      }
+
+      async function detectBrowserProfile() {
+        const userAgent = navigator.userAgent;
+        let isBrave = false;
+
+        try {
+          isBrave = (await navigator.brave?.isBrave?.()) === true;
+        } catch (error) {
+          console.debug("Brave detection failed", error);
+        }
+
+        let name = "Unknown browser";
+        let version = null;
+        if (isBrave) {
+          name = "Brave";
+          version = userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? null;
+        } else if (/Edg\//.test(userAgent)) {
+          name = "Microsoft Edge";
+          version = userAgent.match(/Edg\/([\d.]+)/)?.[1] ?? null;
+        } else if (/Firefox\//.test(userAgent)) {
+          name = "Firefox";
+          version = userAgent.match(/Firefox\/([\d.]+)/)?.[1] ?? null;
+        } else if (/Version\/[\d.]+.*Safari\//.test(userAgent) && !/Chrome\//.test(userAgent)) {
+          name = "Safari";
+          version = userAgent.match(/Version\/([\d.]+)/)?.[1] ?? null;
+        } else if (/Chrome\//.test(userAgent)) {
+          name = "Chrome";
+          version = userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? null;
+        }
+
+        const label = isBrave && version
+          ? "Brave (Chromium " + version + ")"
+          : version
+            ? name + " " + version
+            : name;
+
+        return {
+          name,
+          version,
+          label,
+          isBrave,
+          userAgent,
+          brands: navigator.userAgentData?.brands ?? null,
+          platform: navigator.userAgentData?.platform ?? navigator.platform ?? null,
+          secureContext: globalThis.isSecureContext === true,
+          webTransportPropertyPresent: "WebTransport" in globalThis,
+          webTransportConstructible: typeof globalThis.WebTransport === "function",
+        };
+      }
+
+      function setFact(id, value, className) {
+        const node = document.querySelector("#" + id);
+        node.textContent = value;
+        node.className = className ?? "";
+      }
+
+      function renderBrowserProfile() {
+        if (!browserProfile) return;
+        setFact("browserName", browserProfile.label);
+        setFact(
+          "secureContext",
+          browserProfile.secureContext ? "yes" : "no",
+          browserProfile.secureContext ? "ok" : "bad",
+        );
+        setFact(
+          "webTransportApi",
+          browserProfile.webTransportConstructible ? "available" : "unavailable",
+          browserProfile.webTransportConstructible ? "ok" : "bad",
+        );
+      }
+
+      function normalizedOrigin(value) {
+        try {
+          return new URL(value).origin;
+        } catch {
+          return null;
+        }
+      }
+
+      function certificateMetadataMatchesTarget(targetBase) {
+        const configuredTarget = runtimeConfig?.targetBase;
+        if (typeof configuredTarget !== "string") return true;
+        return normalizedOrigin(configuredTarget) === normalizedOrigin(targetBase);
+      }
+
+      function firefoxMkcertHttp3Diagnostic(targetBase) {
+        if (browserProfile?.name !== "Firefox" || !certHash) return null;
+        if (!certificateMetadataMatchesTarget(targetBase)) return null;
+        if (!/mkcert/i.test(certHash.issuer ?? "")) return null;
+        if (certHash.hashUsable === true) return null;
+
+        return {
+          code: "firefox-third-party-root-http3-policy",
+          severity: "warning",
+          targetBase,
+          certificateIssuer: certHash.issuer,
+          firefoxPreference: "network.http.http3.disable_when_third_party_roots_found",
+          message:
+            "Firefox normally blocks HTTP/3 when a valid chain ends at the local mkcert root. " +
+            "This happens before WebTransport CONNECT. Use the short-lived self-signed " +
+            "certificate with serverCertificateHashes, or disable the Firefox preference only " +
+            "in a dedicated diagnostic profile.",
+        };
+      }
+
+      function renderEnvironmentDiagnostic() {
+        const note = document.querySelector("#environmentNote");
+        const targetBase = document.querySelector("#targetBase").value.trim();
+        const diagnostic = firefoxMkcertHttp3Diagnostic(targetBase);
+        note.hidden = diagnostic === null;
+        note.textContent = diagnostic?.message ?? "";
+      }
+
+      function updatePlannedCount() {
+        const pathTotal = selected("path").length;
+        const combinations = buildExhaustiveVariants(certHash?.hashUsable === true).length;
+        setFact("pathCount", String(pathTotal));
+        setFact(
+          "combinationCount",
+          combinations + " combinations (" + pathTotal * combinations + " cases)",
+        );
+      }
+
+      function timeoutAfter(ms, label) {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ ok: false, status: "timeout", detail: label }), ms);
+        });
+      }
+
+      async function capture(label, promise, ms) {
+        try {
+          const value = await Promise.race([promise, timeoutAfter(ms, label)]);
+          if (value && value.status === "timeout") return value;
+          return { ok: true, status: "fulfilled", value };
+        } catch (error) {
+          return { ok: false, status: "rejected", detail: errorString(error) };
+        }
+      }
+
+      function errorString(error) {
+        if (!error) return String(error);
+        const name = error.name ? `${error.name}: ` : "";
+        return `${name}${error.message ?? String(error)}`;
+      }
+
+      function hexToBytes(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let index = 0; index < bytes.length; index += 1) {
+          bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+        }
+        return bytes;
+      }
+
+      async function loadCertHash() {
+        if (certHash) return certHash;
+        const response = await fetch("/cert-sha256.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`cert hash fetch failed: ${response.status}`);
+        certHash = await response.json();
+        return certHash;
+      }
+
+      function optionsNeedHash(options) {
+        return options?.serverCertificateHashes === "auto";
+      }
+
+      function certificateHashUnavailableReason(metadata) {
+        if (metadata.error) {
+          return metadata.error;
+        }
+        const reasons = [];
+        if (metadata.currentlyValid === false) {
+          reasons.push("the certificate is expired or not yet valid");
+        }
+        if (metadata.isSelfSigned === false) {
+          reasons.push("the certificate is not self-signed");
+        }
+        if (metadata.publicKeyType !== "ec") {
+          reasons.push("the certificate key is not ECDSA");
+        }
+        if (metadata.validityDays > 14) {
+          reasons.push("the certificate validity exceeds 14 days");
+        }
+        return reasons.length > 0
+          ? reasons.join(", ")
+          : "the certificate is not hash-mode compatible";
+      }
+
+      function applyCertMode() {
+        const info = document.querySelector("#certInfo");
+        if (!certHash) return;
+
+        if (certHash.hashUsable) {
+          info.classList.remove("warning");
+          info.textContent = `Short-certificate hash mode available: ${certHash.cert}`;
+          updatePlannedCount();
+          renderEnvironmentDiagnostic();
+          return;
+        }
+
+        info.classList.add("warning");
+        info.textContent =
+          `Trust-store mode: ${certHash.cert}. Certificate-hash variants are disabled because ${certificateHashUnavailableReason(certHash)}.`;
+
+        for (const input of document.querySelectorAll('input[name="variant"]')) {
+          const [, options] = VARIANTS[Number(input.value)];
+          if (!optionsNeedHash(options)) continue;
+
+          input.checked = false;
+          input.disabled = true;
+          input.parentElement.classList.add("disabled");
+          input.parentElement.title =
+            "Requires the short-lived P-256 self-signed WebTransport certificate, not mkcert.";
+        }
+        updatePlannedCount();
+        renderEnvironmentDiagnostic();
+      }
+
+      function materializeOptions(options) {
+        if (options === undefined) return undefined;
+        const copy = { ...options };
+        if (copy.serverCertificateHashes === "auto") {
+          if (!certHash?.valueHex) throw new Error("certificate hash not loaded");
+          copy.serverCertificateHashes = [
+            {
+              algorithm: "sha-256",
+              value: hexToBytes(certHash.valueHex),
+            },
+          ];
+        }
+        return copy;
+      }
+
+      function displayOptions(options) {
+        if (options === undefined) return null;
+        const copy = { ...options };
+        if (copy.serverCertificateHashes === "auto") {
+          copy.serverCertificateHashes = [
+            {
+              algorithm: "sha-256",
+              valueHex: certHash?.valueHex ?? "<not-loaded>",
+            },
+          ];
+        } else if (Array.isArray(copy.serverCertificateHashes)) {
+          copy.serverCertificateHashes = copy.serverCertificateHashes.map((hash) => ({
+            algorithm: hash.algorithm,
+            valueHex: hash.value instanceof Uint8Array ? [...hash.value].map((byte) => byte.toString(16).padStart(2, "0")).join("") : "<buffer>",
+          }));
+        }
+        return copy;
+      }
+
+      function summarize(result) {
+        if (!result) return "";
+        if (result.status === "fulfilled") return "fulfilled";
+        if (result.status === "timeout") return "timeout";
+        return result.detail ?? result.status;
+      }
+
+      function rowClass(result) {
+        if (!result) return "skip";
+        if (result.status === "fulfilled") return "ok";
+        if (result.status === "not-run") return "skip";
+        return "bad";
+      }
+
+      function bytesToText(value) {
+        if (!value) return "";
+        if (value instanceof Uint8Array) return dec.decode(value);
+        if (value.buffer) return dec.decode(new Uint8Array(value.buffer));
+        return String(value);
+      }
+
+      async function testDatagram(transport, payload, ms) {
+        if (!transport.datagrams?.writable || !transport.datagrams?.readable) {
+          return { ok: false, status: "not-run", detail: "datagram streams unavailable" };
+        }
+
+        const writer = transport.datagrams.writable.getWriter();
+        const write = await capture("datagram write", writer.write(payload), ms);
+        writer.releaseLock();
+        if (!write.ok) return write;
+
+        const reader = transport.datagrams.readable.getReader();
+        const read = await capture("datagram read", reader.read(), ms);
+        reader.releaseLock();
+        if (!read.ok) return read;
+        if (read.value?.done) return { ok: false, status: "rejected", detail: "datagram readable done" };
+
+        return {
+          ok: true,
+          status: "fulfilled",
+          value: bytesToText(read.value?.value),
+        };
+      }
+
+      async function testBidi(transport, payload, ms) {
+        const created = await capture("createBidirectionalStream", transport.createBidirectionalStream(), ms);
+        if (!created.ok) return created;
+
+        const stream = created.value;
+        const writer = stream.writable.getWriter();
+        const write = await capture("bidi write", writer.write(payload), ms);
+        if (!write.ok) {
+          writer.releaseLock();
+          return write;
+        }
+        await capture("bidi writer close", writer.close(), ms);
+        writer.releaseLock();
+
+        const reader = stream.readable.getReader();
+        const read = await capture("bidi read", reader.read(), ms);
+        reader.releaseLock();
+        if (!read.ok) return read;
+        if (read.value?.done) return { ok: false, status: "rejected", detail: "bidi readable done" };
+
+        return {
+          ok: true,
+          status: "fulfilled",
+          value: bytesToText(read.value?.value),
+        };
+      }
+
+      async function testUni(transport, payload, ms) {
+        const created = await capture("createUnidirectionalStream", transport.createUnidirectionalStream(), ms);
+        if (!created.ok) return created;
+
+        const writer = created.value.getWriter();
+        const write = await capture("uni write", writer.write(payload), ms);
+        if (!write.ok) {
+          writer.releaseLock();
+          return write;
+        }
+        await capture("uni writer close", writer.close(), ms);
+        writer.releaseLock();
+
+        if (!transport.incomingUnidirectionalStreams?.getReader) {
+          return { ok: true, status: "fulfilled", value: "sent; incoming uni unavailable" };
+        }
+
+        const incomingReader = transport.incomingUnidirectionalStreams.getReader();
+        const incoming = await capture("incoming unidirectional stream", incomingReader.read(), ms);
+        incomingReader.releaseLock();
+        if (!incoming.ok) return { ...incoming, detail: `sent; ${incoming.detail}` };
+        if (incoming.value?.done) return { ok: true, status: "fulfilled", value: "sent; incoming done" };
+
+        const streamReader = incoming.value.value.getReader();
+        const read = await capture("incoming uni read", streamReader.read(), ms);
+        streamReader.releaseLock();
+        if (!read.ok) return { ...read, detail: `sent; ${read.detail}` };
+
+        return {
+          ok: true,
+          status: "fulfilled",
+          value: `sent; echo=${bytesToText(read.value?.value)}`,
+        };
+      }
+
+      function skipped(detail) {
+        return { ok: false, status: "not-run", detail };
+      }
+
+      function closeTransport(transport, reason) {
+        if (!transport) return;
+        try {
+          transport.close({ closeCode: 0, reason });
+        } catch (error) {
+          console.debug("transport.close failed", error);
+        }
+      }
+
+      async function runProbe(label, probe) {
+        try {
+          return await probe();
+        } catch (error) {
+          return { ok: false, status: "rejected", detail: label + ": " + errorString(error) };
+        }
+      }
+
+      function datagramUnavailable(value) {
+        return value?.status === "not-run" && /unavailable/i.test(value.detail ?? "");
+      }
+
+      function classifyOutcome(result) {
+        if (result.cancelled) return "stopped";
+        if (!result.constructor?.ok) return "constructor rejected";
+        if (!result.ready?.ok) return "ready " + (result.ready?.status ?? "failed");
+
+        const bidi = result.bidirectionalStream?.ok === true;
+        const uni = result.unidirectionalStream?.ok === true;
+        const datagram = result.datagram?.ok === true;
+        if (bidi && uni && datagram) return "full echo pass";
+        if (bidi && uni && datagramUnavailable(result.datagram)) {
+          return "stream echo pass; datagram API unavailable";
+        }
+        if (bidi && uni) return "stream echo pass; datagram failed";
+        if (bidi || uni || datagram) return "ready fulfilled; partial echo";
+        return "ready fulfilled; echo failed";
+      }
+
+      async function runOne(base, path, variant, ms) {
+        const url = base.replace(/\/$/, "") + path;
+        const result = {
+          at: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url,
+          path,
+          variantId: variant.id,
+          variant: variant.name,
+          optionKeys: variant.optionKeys,
+          options: displayOptions(variant.options),
+          constructor: null,
+          ready: null,
+          closed: null,
+          protocol: null,
+          reliability: null,
+          datagram: null,
+          bidirectionalStream: null,
+          unidirectionalStream: null,
+          cancelled: false,
+          outcome: null,
+        };
+
+        let transport;
+        try {
+          const transportOptions = materializeOptions(variant.options);
+          transport =
+            transportOptions === undefined
+              ? new WebTransport(url)
+              : new WebTransport(url, transportOptions);
+          result.constructor = { ok: true, status: "fulfilled" };
+        } catch (error) {
+          result.constructor = { ok: false, status: "rejected", detail: errorString(error) };
+          result.outcome = classifyOutcome(result);
+          return result;
+        }
+
+        activeTransport = transport;
+        const closedPromise = capture("closed", transport.closed, ms + 1000);
+        try {
+          result.ready = await capture("ready", transport.ready, ms);
+          result.protocol = "protocol" in transport ? transport.protocol : null;
+          result.reliability = "reliability" in transport ? transport.reliability : null;
+
+          if (!result.ready.ok) {
+            result.datagram = skipped("skipped: ready failed");
+            result.bidirectionalStream = skipped("skipped: ready failed");
+            result.unidirectionalStream = skipped("skipped: ready failed");
+            result.cancelled = cancelRequested;
+            closeTransport(transport, cancelRequested ? "matrix stopped" : "ready failed");
+            result.closed = await closedPromise;
+            result.outcome = classifyOutcome(result);
+            return result;
+          }
+
+          const payload = enc.encode("echo:" + path + ":" + variant.id + ":" + Date.now());
+
+          result.datagram = cancelRequested
+            ? skipped("skipped: run stopped")
+            : await runProbe("datagram", () => testDatagram(transport, payload, ms));
+          result.bidirectionalStream = cancelRequested
+            ? skipped("skipped: run stopped")
+            : await runProbe(
+                "bidirectional stream",
+                () => testBidi(transport, payload, ms),
+              );
+          result.unidirectionalStream = cancelRequested
+            ? skipped("skipped: run stopped")
+            : await runProbe(
+                "unidirectional stream",
+                () => testUni(transport, payload, ms),
+              );
+
+          result.cancelled = cancelRequested;
+          closeTransport(transport, cancelRequested ? "matrix stopped" : "matrix complete");
+          result.closed = await closedPromise;
+          result.outcome = classifyOutcome(result);
+          return result;
+        } finally {
+          if (activeTransport === transport) activeTransport = null;
+        }
+      }
+
+      function appendRow(result) {
+        const tr = document.createElement("tr");
+        const cells = [
+          result.path,
+          result.variant,
+          summarize(result.constructor),
+          summarize(result.ready),
+          result.protocol ?? "",
+          result.reliability ?? "",
+          summarize(result.datagram),
+          summarize(result.bidirectionalStream),
+          summarize(result.unidirectionalStream),
+          summarize(result.closed),
+          result.outcome ?? classifyOutcome(result),
+        ];
+
+        cells.forEach((cell, index) => {
+          const td = document.createElement("td");
+          td.textContent = String(cell);
+          if (index >= 2) {
+            const keys = [
+              "constructor",
+              "ready",
+              null,
+              null,
+              "datagram",
+              "bidirectionalStream",
+              "unidirectionalStream",
+              "closed",
+              null,
+            ];
+            const key = keys[index - 2];
+            if (key) td.className = rowClass(result[key]);
+            if (index === 10) {
+              td.className = result.cancelled ? "skip" : result.ready?.ok ? "ok" : "bad";
+            }
+          }
+          tr.appendChild(td);
+        });
+        document.querySelector("#tbody").appendChild(tr);
+      }
+
+      function countFulfilled(cases, key) {
+        return cases.filter((item) => item[key]?.ok === true).length;
+      }
+
+      function summarizeResults(cases, plannedCases, targetBase) {
+        const constructor = countFulfilled(cases, "constructor");
+        const ready = countFulfilled(cases, "ready");
+        const datagram = countFulfilled(cases, "datagram");
+        const bidi = countFulfilled(cases, "bidirectionalStream");
+        const uni = countFulfilled(cases, "unidirectionalStream");
+        const closed = countFulfilled(cases, "closed");
+        const datagramUnavailableCount = cases.filter(
+          (item) => datagramUnavailable(item.datagram),
+        ).length;
+        const streamEcho = cases.filter(
+          (item) =>
+            item.ready?.ok &&
+            item.bidirectionalStream?.ok &&
+            item.unidirectionalStream?.ok,
+        ).length;
+        const fullEcho = cases.filter(
+          (item) =>
+            item.ready?.ok &&
+            item.datagram?.ok &&
+            item.bidirectionalStream?.ok &&
+            item.unidirectionalStream?.ok,
+        ).length;
+        const firefoxMkcertDiagnostic = firefoxMkcertHttp3Diagnostic(targetBase);
+
+        let conclusion;
+        if (!browserProfile?.webTransportConstructible) {
+          conclusion =
+            (browserProfile?.label ?? "This browser") +
+            " does not expose a constructible WebTransport API.";
+        } else if (fullEcho > 0) {
+          conclusion = "Full WebTransport datagram, bidirectional, and unidirectional echo works.";
+        } else if (streamEcho > 0 && datagramUnavailableCount >= streamEcho) {
+          conclusion =
+            "WebTransport ready and stream echo work; datagram streams are not exposed by this browser.";
+        } else if (streamEcho > 0) {
+          conclusion = "WebTransport ready and stream echo work; datagram echo does not.";
+        } else if (ready > 0) {
+          conclusion = "WebTransport ready works, but no case completed both stream echo tests.";
+        } else if (constructor > 0 && firefoxMkcertDiagnostic) {
+          conclusion =
+            "Firefox exposed WebTransport, but this result matches its default mkcert-root " +
+            "HTTP/3 block. The connection is closed before WebTransport CONNECT; constructor " +
+            "and response-header combinations cannot change it.";
+        } else if (constructor > 0) {
+          conclusion =
+            "The WebTransport API is exposed, but no tested combination reached transport.ready.";
+        } else if (cases.length > 0) {
+          conclusion = "WebTransport exists, but every tested constructor call was rejected.";
+        } else {
+          conclusion = "No WebTransport cases were run.";
+        }
+
+        return {
+          plannedCases,
+          completedCases: cases.length,
+          constructor,
+          ready,
+          datagram,
+          datagramUnavailable: datagramUnavailableCount,
+          bidirectionalStream: bidi,
+          unidirectionalStream: uni,
+          closed,
+          streamEcho,
+          fullEcho,
+          conclusion,
+        };
+      }
+
+      function analyzePaths(cases, axes) {
+        const paths = [...new Set(cases.map((item) => item.path))];
+        return paths.map((path) => {
+          const pathCases = cases.filter((item) => item.path === path);
+          const ready = countFulfilled(pathCases, "ready");
+          const effects = axes.map((axis) => {
+            const withOption = pathCases.filter((item) => item.optionKeys.includes(axis.key));
+            const withoutOption = pathCases.filter((item) => !item.optionKeys.includes(axis.key));
+            return {
+              key: axis.key,
+              label: axis.label,
+              withOption: {
+                ready: countFulfilled(withOption, "ready"),
+                total: withOption.length,
+              },
+              withoutOption: {
+                ready: countFulfilled(withoutOption, "ready"),
+                total: withoutOption.length,
+              },
+            };
+          });
+
+          let signal;
+          if (ready === 0) {
+            signal = "No combination reached ready";
+          } else if (ready === pathCases.length) {
+            signal = "Every tested combination reached ready";
+          } else {
+            const onlyWith = effects.filter(
+              (effect) =>
+                effect.withOption.ready > 0 &&
+                effect.withoutOption.ready === 0,
+            );
+            const onlyWithout = effects.filter(
+              (effect) =>
+                effect.withoutOption.ready > 0 &&
+                effect.withOption.ready === 0,
+            );
+            const signals = [];
+            if (onlyWith.length > 0) {
+              signals.push(
+                "ready only with " + onlyWith.map((effect) => effect.label).join(", "),
+              );
+            }
+            if (onlyWithout.length > 0) {
+              signals.push(
+                "ready only without " + onlyWithout.map((effect) => effect.label).join(", "),
+              );
+            }
+            signal = signals.length > 0
+              ? signals.join("; ")
+              : "Mixed or interacting option effects";
+          }
+
+          const readyCases = pathCases.filter((item) => item.ready?.ok);
+          const datagramUnavailableForReady = readyCases.filter(
+            (item) => datagramUnavailable(item.datagram),
+          ).length;
+
+          return {
+            path,
+            total: pathCases.length,
+            ready,
+            bidirectionalStream: countFulfilled(pathCases, "bidirectionalStream"),
+            unidirectionalStream: countFulfilled(pathCases, "unidirectionalStream"),
+            datagram: countFulfilled(pathCases, "datagram"),
+            datagramUnavailable: datagramUnavailableForReady,
+            signal,
+            effects,
+          };
+        });
+      }
+
+      function stageText(success, total) {
+        return success + "/" + total;
+      }
+
+      function renderReport() {
+        if (!report?.summary) return;
+
+        const summaryRoot = document.querySelector("#summary");
+        summaryRoot.hidden = false;
+        document.querySelector("#conclusion").textContent = report.summary.conclusion;
+
+        const metrics = [
+          ["Cases", stageText(report.summary.completedCases, report.summary.plannedCases)],
+          ["Constructor", stageText(report.summary.constructor, report.summary.completedCases)],
+          ["Ready", stageText(report.summary.ready, report.summary.completedCases)],
+          ["Datagram", stageText(report.summary.datagram, report.summary.completedCases)],
+          ["Bidi", stageText(report.summary.bidirectionalStream, report.summary.completedCases)],
+          ["Uni", stageText(report.summary.unidirectionalStream, report.summary.completedCases)],
+          ["Full echo", stageText(report.summary.fullEcho, report.summary.completedCases)],
+        ];
+        const metricsRoot = document.querySelector("#summaryMetrics");
+        metricsRoot.innerHTML = "";
+        for (const [label, value] of metrics) {
+          const metric = document.createElement("div");
+          metric.className = "metric";
+          const labelNode = document.createElement("span");
+          labelNode.textContent = label;
+          const valueNode = document.createElement("strong");
+          valueNode.textContent = value;
+          metric.append(labelNode, valueNode);
+          metricsRoot.appendChild(metric);
+        }
+
+        const analysisRoot = document.querySelector("#analysis");
+        const analysisBody = document.querySelector("#analysisBody");
+        analysisBody.innerHTML = "";
+        analysisRoot.hidden = report.pathAnalysis.length === 0;
+        for (const item of report.pathAnalysis) {
+          const tr = document.createElement("tr");
+          const datagram = item.datagramUnavailable === item.ready && item.ready > 0
+            ? "not exposed"
+            : stageText(item.datagram, item.total);
+          const values = [
+            item.path,
+            stageText(item.ready, item.total),
+            stageText(item.bidirectionalStream, item.total),
+            stageText(item.unidirectionalStream, item.total),
+            datagram,
+            item.signal,
+          ];
+          for (const value of values) {
+            const td = document.createElement("td");
+            td.textContent = value;
+            tr.appendChild(td);
+          }
+          analysisBody.appendChild(tr);
+        }
+      }
+
+      function updateReportJson() {
+        document.querySelector("#json").value = report
+          ? JSON.stringify(report, null, 2)
+          : "";
+      }
+
+      function setRunControls(running) {
+        document.querySelector("#runSelected").disabled = running;
+        document.querySelector("#runExhaustive").disabled = running;
+        document.querySelector("#stop").disabled = !running;
+      }
+
+      async function runMatrix(mode) {
+        const status = document.querySelector("#status");
+        const base = document.querySelector("#targetBase").value.trim();
+        const ms = Number(document.querySelector("#timeoutMs").value || 5000);
+        const delayMs = Math.max(0, Number(document.querySelector("#delayMs").value || 0));
+        const paths = selected("path");
+        const runMode = mode === "exhaustive" ? "exhaustive" : "selected";
+
+        if (!browserProfile) {
+          browserProfile = await detectBrowserProfile();
+          renderBrowserProfile();
+        }
+        if (!certHash) {
+          try {
+            status.textContent = "Loading certificate mode";
+            await loadCertHash();
+            applyCertMode();
+          } catch (error) {
+            document.querySelector("#certInfo").textContent = errorString(error);
+          }
+        }
+        if (paths.length === 0) {
+          status.textContent = "No response paths selected";
+          return;
+        }
+
+        let variants = runMode === "exhaustive"
+          ? buildExhaustiveVariants(certHash?.hashUsable === true)
+          : selectedCuratedVariants();
+        if (certHash?.hashUsable === false) {
+          variants = variants.filter((variant) => !optionsNeedHash(variant.options));
+        }
+        if (variants.length === 0) {
+          status.textContent = "No runnable constructor variants selected";
+          return;
+        }
+
+        const plannedCases = paths.length * variants.length;
+        results = [];
+        cancelRequested = false;
+        document.querySelector("#tbody").innerHTML = "";
+        document.querySelector("#summary").hidden = true;
+        document.querySelector("#analysis").hidden = true;
+        report = {
+          generatedAt: new Date().toISOString(),
+          environment: browserProfile,
+          environmentDiagnostics: [firefoxMkcertHttp3Diagnostic(base)].filter(Boolean),
+          runtimeConfig,
+          certificate: certHash,
+          run: {
+            mode: runMode,
+            targetBase: base,
+            timeoutMs: ms,
+            betweenCasesMs: delayMs,
+            paths,
+            plannedCases,
+            constructorVariants: variants.map((variant) => ({
+              id: variant.id,
+              name: variant.name,
+              optionKeys: variant.optionKeys,
+              options: displayOptions(variant.options),
+            })),
+          },
+          cancelled: false,
+          summary: null,
+          pathAnalysis: [],
+          results,
+        };
+        setRunControls(true);
+        updateReportJson();
+
+        try {
+          if (!browserProfile.webTransportConstructible) {
+            report.summary = summarizeResults(results, plannedCases, base);
+            report.finishedAt = new Date().toISOString();
+            status.textContent =
+              browserProfile.label + ": WebTransport API unavailable; no network tests started";
+            renderReport();
+            updateReportJson();
+            return;
+          }
+
+          matrixLoop:
+          for (const path of paths) {
+            for (const variant of variants) {
+              if (cancelRequested) break matrixLoop;
+              status.textContent =
+                "Running " +
+                (results.length + 1) +
+                "/" +
+                plannedCases +
+                ": " +
+                path +
+                " / " +
+                variant.name;
+              const result = await runOne(base, path, variant, ms);
+              results.push(result);
+              console.log("WT matrix result", result);
+              appendRow(result);
+              report.summary = summarizeResults(results, plannedCases, base);
+              updateReportJson();
+              if (!cancelRequested && delayMs > 0) {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+              }
+            }
+          }
+
+          report.cancelled = cancelRequested;
+          report.finishedAt = new Date().toISOString();
+          report.summary = summarizeResults(results, plannedCases, base);
+          if (runMode === "exhaustive" && !cancelRequested) {
+            const axes = variants.some(
+              (variant) => variant.optionKeys.includes(CERTIFICATE_AXIS.key),
+            )
+              ? [...EXHAUSTIVE_AXES, CERTIFICATE_AXIS]
+              : [...EXHAUSTIVE_AXES];
+            report.pathAnalysis = analyzePaths(results, axes);
+          }
+          status.textContent = cancelRequested
+            ? "Stopped after " + results.length + "/" + plannedCases + " cases"
+            : "Done: " + results.length + " cases";
+          renderReport();
+          updateReportJson();
+        } finally {
+          setRunControls(false);
+        }
+      }
+
+      async function loadRuntimeConfig() {
+        try {
+          const response = await fetch("/matrix-config.json", { cache: "no-store" });
+          if (!response.ok) return null;
+          runtimeConfig = await response.json();
+          const params = new URLSearchParams(location.search);
+
+          if (!params.has("target") && typeof runtimeConfig.targetBase === "string") {
+            document.querySelector("#targetBase").value = runtimeConfig.targetBase;
+          }
+          if (!params.has("timeout") && Number.isFinite(runtimeConfig.defaultTimeoutMs)) {
+            document.querySelector("#timeoutMs").value = String(runtimeConfig.defaultTimeoutMs);
+          }
+          if (!params.has("delay") && Number.isFinite(runtimeConfig.defaultBetweenCasesMs)) {
+            document.querySelector("#delayMs").value = String(runtimeConfig.defaultBetweenCasesMs);
+          }
+          if (
+            !params.has("paths") &&
+            Array.isArray(runtimeConfig.defaultPaths) &&
+            runtimeConfig.defaultPaths.length > 0
+          ) {
+            const configuredPaths = new Set(runtimeConfig.defaultPaths);
+            for (const input of document.querySelectorAll('input[name="path"]')) {
+              input.checked = configuredPaths.has(input.value);
+            }
+          }
+          return runtimeConfig;
+        } catch (error) {
+          console.debug("Runtime config unavailable", error);
+          return null;
+        }
+      }
+
+      async function initialize() {
+        renderChecks();
+        await loadRuntimeConfig();
+        applyQueryDefaults();
+        browserProfile = await detectBrowserProfile();
+        renderBrowserProfile();
+
+        try {
+          await loadCertHash();
+          applyCertMode();
+        } catch (error) {
+          document.querySelector("#certInfo").textContent = errorString(error);
+        }
+        updatePlannedCount();
+        renderEnvironmentDiagnostic();
+
+        const params = new URLSearchParams(location.search);
+        const autorun = params.has("autorun")
+          ? params.get("autorun") === "1"
+          : runtimeConfig?.autorun === true;
+        if (autorun) {
+          const modeFromQuery =
+            params.get("mode") === "exhaustive" || params.get("exhaustive") === "1"
+              ? "exhaustive"
+              : null;
+          const mode = modeFromQuery ?? runtimeConfig?.defaultMode ?? "selected";
+          await runMatrix(mode);
+        }
+      }
+
+      document.querySelector("#runSelected").addEventListener(
+        "click",
+        () => runMatrix("selected"),
+      );
+      document.querySelector("#runExhaustive").addEventListener(
+        "click",
+        () => runMatrix("exhaustive"),
+      );
+      document.querySelector("#stop").addEventListener("click", () => {
+        cancelRequested = true;
+        document.querySelector("#status").textContent = "Stopping current case";
+        closeTransport(activeTransport, "matrix stopped");
+      });
+      document.querySelector("#copy").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(
+          report ? JSON.stringify(report, null, 2) : JSON.stringify(results, null, 2),
+        );
+      });
+      document.querySelector("#paths").addEventListener("change", updatePlannedCount);
+      document.querySelector("#targetBase").addEventListener("input", renderEnvironmentDiagnostic);
+      initialize().catch((error) => {
+        document.querySelector("#status").textContent = errorString(error);
+        setRunControls(false);
+      });
+    </script>
+  </body>
+</html>

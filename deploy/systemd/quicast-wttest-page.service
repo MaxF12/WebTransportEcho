@@ -1,0 +1,29 @@
+[Unit]
+Description=QUICast WebTransport browser matrix page
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=quicast-wttest
+Group=quicast-wttest
+WorkingDirectory=/opt/quicast/webtransport-echo
+EnvironmentFile=/etc/quicast/wttest.env
+ExecStart=/opt/quicast/webtransport-echo/deploy/bin/run-page.sh
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
