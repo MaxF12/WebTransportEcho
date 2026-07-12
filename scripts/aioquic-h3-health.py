@@ -7,7 +7,12 @@ from typing import Dict
 
 from aioquic.asyncio import QuicConnectionProtocol, connect
 from aioquic.h3.connection import H3_ALPN, H3Connection
-from aioquic.h3.events import DataReceived, HeadersReceived, WebTransportStreamDataReceived
+from aioquic.h3.events import (
+    DataReceived,
+    DatagramReceived,
+    HeadersReceived,
+    WebTransportStreamDataReceived,
+)
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import ConnectionTerminated, QuicEvent, StreamDataReceived
 
@@ -19,6 +24,7 @@ class HealthProtocol(QuicConnectionProtocol):
         self._requests: Dict[int, Dict[str, object]] = {}
         self._sessions: Dict[int, asyncio.Future[int]] = {}
         self._stream_echoes: Dict[int, Dict[str, object]] = {}
+        self._datagram_echoes: Dict[int, asyncio.Future[bytes]] = {}
 
     async def get(self, authority: str, path: str) -> Dict[str, object]:
         stream_id = self._quic.get_next_available_stream_id()
@@ -68,6 +74,13 @@ class HealthProtocol(QuicConnectionProtocol):
         self.transmit()
         return await asyncio.shield(waiter)
 
+    async def datagram_echo(self, session_id: int, payload: bytes) -> bytes:
+        waiter = self._loop.create_future()
+        self._datagram_echoes[session_id] = waiter
+        self._http.send_datagram(session_id, payload)
+        self.transmit()
+        return await asyncio.shield(waiter)
+
     def quic_event_received(self, event: QuicEvent) -> None:
         if isinstance(event, StreamDataReceived) and event.stream_id in self._stream_echoes:
             echo = self._stream_echoes[event.stream_id]
@@ -83,6 +96,7 @@ class HealthProtocol(QuicConnectionProtocol):
             waiters = [request["waiter"] for request in self._requests.values()]
             waiters.extend(self._sessions.values())
             waiters.extend(echo["waiter"] for echo in self._stream_echoes.values())
+            waiters.extend(self._datagram_echoes.values())
             for waiter in waiters:
                 if not waiter.done():
                     waiter.set_exception(
@@ -95,6 +109,14 @@ class HealthProtocol(QuicConnectionProtocol):
 
         for http_event in self._http.handle_event(event):
             stream_id = getattr(http_event, "stream_id", None)
+            if isinstance(http_event, DatagramReceived):
+                if stream_id is None:
+                    stream_id = getattr(http_event, "flow_id", None)
+                waiter = self._datagram_echoes.pop(stream_id, None)
+                if waiter is not None and not waiter.done():
+                    waiter.set_result(http_event.data)
+                continue
+
             if isinstance(http_event, HeadersReceived) and stream_id in self._sessions:
                 headers = dict(http_event.headers)
                 status = headers.get(b":status")
@@ -166,12 +188,18 @@ async def probe(args: argparse.Namespace) -> None:
                 client.open_webtransport(authority, args.webtransport_path), args.timeout
             )
             payload = b"quicast-wttest-health"
+            datagram_echoed = await asyncio.wait_for(
+                client.datagram_echo(session_id, payload), args.timeout
+            )
             echoed = await asyncio.wait_for(client.bidi_echo(session_id, payload), args.timeout)
             result["webtransport"] = {
                 "bidiEcho": echoed.decode("ascii", "replace"),
+                "datagramEcho": datagram_echoed.decode("ascii", "replace"),
                 "path": args.webtransport_path,
                 "sessionId": session_id,
             }
+            if datagram_echoed != payload:
+                raise RuntimeError(f"unexpected WebTransport datagram echo: {datagram_echoed!r}")
             if echoed != payload:
                 raise RuntimeError(f"unexpected WebTransport bidi echo: {echoed!r}")
 

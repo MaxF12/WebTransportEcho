@@ -234,18 +234,22 @@ class WebTransportEchoProtocol(QuicConnectionProtocol):
         self.transmit()
 
     def _handle_datagram(self, event: DatagramReceived) -> None:
-        path = self._sessions.get(event.flow_id)
+        session_id = datagram_session_id(event)
+        path = self._sessions.get(session_id)
         LOG.info(
-            "datagram received flow_id=%s path=%s bytes=%s hex=%s",
-            event.flow_id,
+            "datagram received session=%s path=%s bytes=%s hex=%s",
+            session_id,
             path,
             len(event.data),
             event.data[:24].hex(),
         )
         if path is None:
             return
-        self._http.send_datagram(flow_id=event.flow_id, data=event.data)
-        LOG.info("datagram echoed flow_id=%s bytes=%s", event.flow_id, len(event.data))
+        # aioquic 1.3 names this HTTP/3 context stream_id, while the local
+        # compatibility checkout still calls it flow_id. Positional dispatch
+        # works with both APIs.
+        self._http.send_datagram(session_id, event.data)
+        LOG.info("datagram echoed session=%s bytes=%s", session_id, len(event.data))
         self.transmit()
 
     def _handle_webtransport_stream(self, event: WebTransportStreamDataReceived) -> None:
@@ -357,6 +361,16 @@ def available_protocols_contains(value: bytes, protocol: bytes) -> bool:
         if token.encode() == protocol:
             return True
     return False
+
+
+def datagram_session_id(event: DatagramReceived) -> int:
+    stream_id = getattr(event, "stream_id", None)
+    if stream_id is not None:
+        return int(stream_id)
+    flow_id = getattr(event, "flow_id", None)
+    if flow_id is not None:
+        return int(flow_id)
+    raise AttributeError("DatagramReceived has neither stream_id nor flow_id")
 
 
 def header_map(headers: Headers) -> Dict[bytes, bytes]:

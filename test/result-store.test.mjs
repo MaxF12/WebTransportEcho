@@ -11,6 +11,26 @@ import {
   sanitizeSubmission,
 } from "../scripts/result-store.mjs";
 
+const OPTION_KEYS = [
+  "allowPooling",
+  "requireUnreliable",
+  "congestionControl",
+  "protocols",
+  "serverCertificateHashes",
+];
+
+function combinations(total, outcomes = {}) {
+  return Array.from({ length: total }, (_, mask) => ({
+    mask,
+    options: OPTION_KEYS.filter((_, index) => (mask & (1 << index)) !== 0),
+    constructor: "pass",
+    ready: outcomes.ready ?? "pass",
+    bidirectionalStream: outcomes.bidirectionalStream ?? "pass",
+    unidirectionalStream: outcomes.unidirectionalStream ?? "pass",
+    datagram: outcomes.datagram ?? "unavailable",
+  }));
+}
+
 function submission(overrides = {}) {
   const totalPerPath = 16;
   const completedCases = totalPerPath * RESULT_PATHS.length;
@@ -44,6 +64,7 @@ function submission(overrides = {}) {
       bidirectionalStream: totalPerPath,
       unidirectionalStream: totalPerPath,
       effects: [],
+      combinations: combinations(totalPerPath),
       rawError: "must-not-persist",
     })),
     targetBase: "https://private.example.invalid:9446",
@@ -85,6 +106,12 @@ test("stores one anonymous latest snapshot and only material changes", async () 
       path.bidirectionalStream = 0;
       path.unidirectionalStream = 0;
       path.datagramUnavailable = 0;
+      path.combinations = combinations(path.total, {
+        ready: "fail",
+        bidirectionalStream: "fail",
+        unidirectionalStream: "fail",
+        datagram: "fail",
+      });
     }
     const changed = await store.record(changedInput);
     assert.equal(changed.changed, true);
@@ -136,6 +163,20 @@ test("requires complete exhaustive coverage of all known paths", () => {
   assert.throws(() => sanitizeSubmission(incomplete, new Date().toISOString()), /all response paths/);
 });
 
+test("validates and retains the exact exhaustive option matrix", () => {
+  const sanitized = sanitizeSubmission(submission(), "2026-07-11T10:00:00.000Z");
+  assert.equal(sanitized.paths[0].combinations.length, 16);
+  assert.deepEqual(sanitized.paths[0].combinations[0].options, []);
+  assert.deepEqual(sanitized.paths[0].combinations[15].options, OPTION_KEYS.slice(0, 4));
+
+  const inconsistent = submission();
+  inconsistent.paths[0].combinations[0].ready = "fail";
+  assert.throws(
+    () => sanitizeSubmission(inconsistent, "2026-07-11T10:00:00.000Z"),
+    /ready does not match its option matrix/,
+  );
+});
+
 test("records API-unavailable browsers without synthetic network cases", () => {
   const unavailable = submission({
     browser: { name: "Brave", version: "152.0.1" },
@@ -161,6 +202,7 @@ test("records API-unavailable browsers without synthetic network cases", () => {
       bidirectionalStream: 0,
       unidirectionalStream: 0,
       effects: [],
+      combinations: [],
     })),
   });
 

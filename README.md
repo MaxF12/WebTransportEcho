@@ -350,10 +350,12 @@ and can be disabled before a run or with `?publish=0`.
 The server retains one latest snapshot for each browser family and a bounded
 change log containing only material differences from the prior snapshot. It
 stores the browser family and major version, API availability, aggregate stage
-counts, per-path counts, and derived option signals. It does not retain raw user
-agents, IP addresses, platform strings, target URLs, exception text, individual
-case payloads, or prior full reports. Repeated results with identical behavior
-only refresh the latest timestamp and do not add a change event.
+counts, per-path counts, derived option signals, and the normalized stage
+outcome for every exhaustive option combination. The overview renders that
+matrix per browser and response path. It does not retain raw user agents, IP
+addresses, platform strings, target URLs, exception text, individual case
+payloads, or prior full reports. Repeated results with identical behavior only
+refresh the latest timestamp and do not add a change event.
 
 Selected, cancelled, incomplete, partial-path, and custom-target runs stay
 local. The server validates the reduced schema again before writing it
@@ -395,8 +397,9 @@ sudo /opt/quicast/webtransport-echo/deploy/install-node.sh
 The Git checkout uses pinned aioquic 1.3.0, installs isolated systemd services,
 synchronizes a public Caddy certificate without exposing Caddy's private data
 tree to the runtime, and includes a real H3 health probe. The probe also opens
-a WebTransport session and verifies a bidirectional echo. Later deploys are a
-fast-forward pull followed by another idempotent `deploy/install-node.sh` run.
+a WebTransport session and verifies datagram and bidirectional echoes. Later
+deploys are a fast-forward pull followed by another idempotent
+`deploy/install-node.sh` run.
 The copy/paste integration brief is
 [`docs/BIFROST-HANDOFF.md`](docs/BIFROST-HANDOFF.md).
 
@@ -455,6 +458,12 @@ The server logs:
 - selected response headers
 - datagram/session flow IDs
 - WebTransport stream IDs, direction, byte counts, and echo events
+
+Upstream aioquic 1.3 exposes the HTTP/3 datagram context as `stream_id`; the
+local compatibility checkout calls the same value `flow_id`. The echo handler
+accepts both event shapes and uses positional `send_datagram` dispatch so the
+two supported aioquic runtimes behave identically. The node health probe tests
+datagram echo as well as CONNECT and stream echo.
 
 ## Current Conclusion
 

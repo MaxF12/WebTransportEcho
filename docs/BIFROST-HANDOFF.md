@@ -61,10 +61,11 @@ explicit WebTransport URL in `/matrix-config.json`.
 - `/results.html` and `/api/browser-results` load through Caddy.
 - A complete exhaustive run updates only that browser family's latest snapshot;
   an identical rerun adds no change entry, while a material metric change does.
-- Stored result JSON contains no raw UA, IP, target URL, platform string,
-  exception text, individual case result, or prior full snapshot.
+- Stored result JSON includes normalized per-option stage outcomes but no raw
+  UA, IP, target URL, platform string, exception text, individual case record,
+  or prior full snapshot.
 - The node check passes, including its verified H3 `/healthz` request,
-  WebTransport CONNECT, and bidirectional stream echo.
+  WebTransport CONNECT, datagram echo, and bidirectional stream echo.
 - `ss -lun` shows UDP 9446 owned by the aioquic service and TCP 8088 remains
   loopback-only.
 - Caddy renewal causes an atomic certificate copy and H3 restart only when the

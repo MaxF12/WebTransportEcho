@@ -1,6 +1,14 @@
 const statusNode = document.querySelector("#status");
 const refreshButton = document.querySelector("#refresh");
 
+const OPTION_LABELS = new Map([
+  ["allowPooling", "allowPooling=false"],
+  ["requireUnreliable", "requireUnreliable=true"],
+  ["congestionControl", "congestionControl=low-latency"],
+  ["protocols", "protocols=quicast-wt-v0"],
+  ["serverCertificateHashes", "serverCertificateHashes=sha-256"],
+]);
+
 refreshButton.addEventListener("click", loadResults);
 loadResults();
 
@@ -32,6 +40,7 @@ function render(data) {
     : "None";
   renderLatest(latest);
   renderPaths(latest);
+  renderMatrices(latest);
   renderChanges(changes);
 }
 
@@ -113,6 +122,107 @@ function renderPaths(latest) {
     container.append(heading, wrap);
     root.appendChild(container);
   }
+}
+
+function renderMatrices(latest) {
+  const section = document.querySelector("#matrixSection");
+  const root = document.querySelector("#matrixDetails");
+  const results = latest.filter((result) =>
+    result.paths?.some((path) => Array.isArray(path.combinations) && path.combinations.length > 0),
+  );
+  root.replaceChildren();
+  section.hidden = results.length === 0;
+
+  for (const result of results) {
+    const paths = result.paths.filter(
+      (path) => Array.isArray(path.combinations) && path.combinations.length > 0,
+    );
+    const container = document.createElement("section");
+    container.className = "browser-detail";
+
+    const heading = document.createElement("div");
+    heading.className = "detail-heading";
+    const title = document.createElement("h3");
+    title.textContent = browserLabel(result.browser);
+    const received = document.createElement("span");
+    received.textContent = formatDate(result.receivedAt);
+    heading.append(title, received);
+
+    const controls = document.createElement("div");
+    controls.className = "matrix-controls";
+    const label = document.createElement("label");
+    label.textContent = "Response path";
+    const select = document.createElement("select");
+    for (const path of paths) {
+      const option = document.createElement("option");
+      option.value = path.path;
+      option.textContent = path.path;
+      select.appendChild(option);
+    }
+    label.appendChild(select);
+    controls.appendChild(label);
+
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+    const table = document.createElement("table");
+    table.className = "matrix-table";
+    table.appendChild(tableHead([
+      "Options",
+      "Constructor",
+      "Ready",
+      "Bidi",
+      "Uni",
+      "Datagram",
+    ]));
+    const body = document.createElement("tbody");
+    table.appendChild(body);
+    wrap.appendChild(table);
+
+    const renderSelectedPath = () => {
+      const path = paths.find((item) => item.path === select.value) ?? paths[0];
+      renderCombinationRows(body, path.combinations);
+    };
+    select.addEventListener("change", renderSelectedPath);
+    renderSelectedPath();
+
+    container.append(heading, controls, wrap);
+    root.appendChild(container);
+  }
+}
+
+function renderCombinationRows(body, combinations) {
+  body.replaceChildren();
+  for (const combination of combinations) {
+    const row = document.createElement("tr");
+    appendCell(row, optionText(combination.options));
+    appendOutcome(row, combination.constructor);
+    appendOutcome(row, combination.ready);
+    appendOutcome(row, combination.bidirectionalStream);
+    appendOutcome(row, combination.unidirectionalStream);
+    appendOutcome(row, combination.datagram);
+    body.appendChild(row);
+  }
+}
+
+function optionText(options) {
+  if (!Array.isArray(options) || options.length === 0) return "no options";
+  return options.map((key) => OPTION_LABELS.get(key) ?? key).join(" + ");
+}
+
+function appendOutcome(row, outcome) {
+  const labels = {
+    pass: "pass",
+    fail: "fail",
+    unavailable: "not exposed",
+    "not-run": "not run",
+  };
+  const classes = {
+    pass: "good",
+    fail: "bad",
+    unavailable: "warn",
+    "not-run": "muted",
+  };
+  appendCell(row, labels[outcome] ?? "unknown", classes[outcome] ?? "muted");
 }
 
 function renderChanges(changes) {

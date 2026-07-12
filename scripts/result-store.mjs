@@ -41,6 +41,24 @@ const PATH_METRICS = [
   ["datagramUnavailable", "datagram unavailable"],
 ];
 
+const OPTION_KEYS = [
+  "allowPooling",
+  "requireUnreliable",
+  "congestionControl",
+  "protocols",
+  "serverCertificateHashes",
+];
+
+const COMBINATION_STAGE_KEYS = [
+  "constructor",
+  "ready",
+  "bidirectionalStream",
+  "unidirectionalStream",
+  "datagram",
+];
+
+const COMBINATION_OUTCOMES = new Set(["pass", "fail", "unavailable", "not-run"]);
+
 const OPTION_LABELS = new Map([
   ["allowPooling", "allowPooling=false"],
   ["requireUnreliable", "requireUnreliable=true"],
@@ -230,6 +248,8 @@ function sanitizePaths(input, run, capabilities) {
       }
     }
     sanitized.effects = sanitizeEffects(item.effects, path);
+    sanitized.combinations = sanitizeCombinations(item.combinations, path, total);
+    validateCombinationCounts(sanitized);
     sanitized.signal = optionSignal(sanitized, capabilities);
     return sanitized;
   });
@@ -239,6 +259,75 @@ function sanitizePaths(input, run, capabilities) {
     throw new TypeError("path totals do not match completedCases");
   }
   return paths;
+}
+
+function sanitizeCombinations(input, path, total) {
+  if (!Array.isArray(input) || input.length !== total) {
+    throw new TypeError(`${path}.combinations must contain one entry per case`);
+  }
+  if (total === 0) return [];
+  if (total !== 16 && total !== 32) {
+    throw new TypeError(`${path}.combinations has an unsupported exhaustive size`);
+  }
+
+  const seen = new Set();
+  const combinations = input.map((item) => {
+    const mask = requiredCount(item?.mask, `${path}.combination.mask`);
+    if (mask >= total || seen.has(mask)) {
+      throw new TypeError(`${path}.combinations contains an invalid option mask`);
+    }
+    seen.add(mask);
+
+    const expectedOptions = OPTION_KEYS.filter((_, index) => (mask & (1 << index)) !== 0);
+    if (
+      !Array.isArray(item.options) ||
+      item.options.length !== expectedOptions.length ||
+      item.options.some((key, index) => key !== expectedOptions[index])
+    ) {
+      throw new TypeError(`${path}.combination ${mask} has invalid options`);
+    }
+
+    const combination = { mask, options: expectedOptions };
+    for (const key of COMBINATION_STAGE_KEYS) {
+      combination[key] = requiredCombinationOutcome(item[key], `${path}.combination ${mask}.${key}`);
+    }
+    return combination;
+  });
+
+  combinations.sort((left, right) => left.mask - right.mask);
+  for (let mask = 0; mask < total; mask += 1) {
+    if (combinations[mask].mask !== mask) {
+      throw new TypeError(`${path}.combinations must cover every exhaustive option mask`);
+    }
+  }
+  return combinations;
+}
+
+function validateCombinationCounts(path) {
+  const aggregateKeys = [
+    "constructor",
+    "ready",
+    "bidirectionalStream",
+    "unidirectionalStream",
+    "datagram",
+  ];
+  for (const key of aggregateKeys) {
+    const passed = path.combinations.filter((item) => item[key] === "pass").length;
+    if (passed !== path[key]) {
+      throw new TypeError(`${path.path}.${key} does not match its option matrix`);
+    }
+  }
+  const unavailable = path.combinations.filter((item) => item.datagram === "unavailable").length;
+  if (unavailable !== path.datagramUnavailable) {
+    throw new TypeError(`${path.path}.datagramUnavailable does not match its option matrix`);
+  }
+}
+
+function requiredCombinationOutcome(value, label) {
+  if (!COMBINATION_OUTCOMES.has(value)) {
+    throw new TypeError(`${label} has an invalid outcome`);
+  }
+  return value;
 }
 
 function sanitizeEffects(input, path) {
@@ -336,6 +425,9 @@ function diffSnapshots(previous, current) {
     }
     if (old.signal !== path.signal) {
       pathDifferences.push("option signal changed");
+    }
+    if (JSON.stringify(old.combinations ?? []) !== JSON.stringify(path.combinations ?? [])) {
+      pathDifferences.push(old.combinations ? "option matrix changed" : "option matrix added");
     }
     if (pathDifferences.length > 0) {
       differences.push(`${path.path}: ${pathDifferences.join(", ")}`);

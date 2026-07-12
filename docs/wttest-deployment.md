@@ -81,10 +81,11 @@ server writes this state atomically to:
 ```
 
 Only normalized aggregate counts, browser family and major version, per-path
-state, and derived option signals are retained. Raw user agents, IP addresses,
-platform strings, target URLs, exception messages, individual cases, and prior
-full reports are discarded. Identical reruns update the latest timestamp but do
-not add a change event. The default cap is 100 change events.
+state, derived option signals, and per-combination stage outcomes are retained.
+Raw user agents, IP addresses, platform strings, target URLs, exception
+messages, raw individual case records, and prior full reports are discarded.
+Identical reruns update the latest timestamp but do not add a change event. The
+default cap is 100 change events.
 
 Only same-origin POST requests are accepted. Complete exhaustive runs against
 the configured target and all eight paths are eligible; selected, cancelled,
@@ -133,7 +134,7 @@ sudo /opt/quicast/webtransport-echo/deploy/check-node.sh
 
 It verifies the services and timer, the loopback page, the UDP listener, the
 certificate hostname, a real TLS+QUIC+HTTP/3 request to `/healthz`, a
-WebTransport CONNECT, and a bidirectional stream echo.
+WebTransport CONNECT, a datagram echo, and a bidirectional stream echo.
 
 Then verify externally:
 

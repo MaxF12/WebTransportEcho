@@ -1495,7 +1495,31 @@
             withOption: effect.withOption,
             withoutOption: effect.withoutOption,
           })),
+          combinations: cases
+            .map(publicationCombination)
+            .sort((left, right) => left.mask - right.mask),
         };
+      }
+
+      function publicationCombination(result) {
+        const mask = Number.parseInt(result.variantId.replace(/^exhaustive-/, ""), 16);
+        return {
+          mask,
+          options: [...result.optionKeys],
+          constructor: publicationStage(result.constructor),
+          ready: publicationStage(result.ready),
+          bidirectionalStream: publicationStage(result.bidirectionalStream),
+          unidirectionalStream: publicationStage(result.unidirectionalStream),
+          datagram: datagramUnavailable(result.datagram)
+            ? "unavailable"
+            : publicationStage(result.datagram),
+        };
+      }
+
+      function publicationStage(stage) {
+        if (stage?.ok === true) return "pass";
+        if (!stage || stage.status === "not-run") return "not-run";
+        return "fail";
       }
 
       function publicationPayload() {
