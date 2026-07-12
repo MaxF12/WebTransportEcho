@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 export const RESULT_SCHEMA_VERSION = 1;
 export const RESULT_PATHS = [
@@ -55,6 +55,7 @@ export function createResultStore({ filePath, maxChanges = 100, clock = () => ne
 
   return {
     async load() {
+      await mkdir(dirname(filePath), { recursive: true });
       try {
         const parsed = JSON.parse(await readFile(filePath, "utf8"));
         if (
@@ -115,6 +116,19 @@ export function createResultStore({ filePath, maxChanges = 100, clock = () => ne
       return operation;
     },
   };
+}
+
+export function resolveResultFile({ configuredPath, stateDirectory, appRoot }) {
+  if (typeof configuredPath === "string" && configuredPath.length > 0) {
+    return configuredPath;
+  }
+
+  const stateRoot = String(stateDirectory ?? "")
+    .split(":")
+    .find((value) => value.length > 0);
+  if (stateRoot) return join(stateRoot, "browser-results.json");
+
+  return join(appRoot, "data", "browser-results.json");
 }
 
 export function sanitizeSubmission(input, receivedAt) {

@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { RESULT_PATHS, createResultStore, sanitizeSubmission } from "../scripts/result-store.mjs";
+import {
+  RESULT_PATHS,
+  createResultStore,
+  resolveResultFile,
+  sanitizeSubmission,
+} from "../scripts/result-store.mjs";
 
 function submission(overrides = {}) {
   const totalPerPath = 16;
@@ -48,7 +53,7 @@ function submission(overrides = {}) {
 
 test("stores one anonymous latest snapshot and only material changes", async () => {
   const directory = await mkdtemp(join(tmpdir(), "wt-result-store-"));
-  const filePath = join(directory, "results.json");
+  const filePath = join(directory, "nested", "results.json");
   const times = [
     new Date("2026-07-11T10:00:00Z"),
     new Date("2026-07-11T11:00:00Z"),
@@ -92,6 +97,33 @@ test("stores one anonymous latest snapshot and only material changes", async () 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("uses the systemd state directory when an existing env lacks WT_RESULTS_FILE", () => {
+  assert.equal(
+    resolveResultFile({
+      configuredPath: undefined,
+      stateDirectory: "/var/lib/quicast-wttest",
+      appRoot: "/opt/quicast/webtransport-echo",
+    }),
+    "/var/lib/quicast-wttest/browser-results.json",
+  );
+  assert.equal(
+    resolveResultFile({
+      configuredPath: "/custom/results.json",
+      stateDirectory: "/var/lib/quicast-wttest",
+      appRoot: "/opt/quicast/webtransport-echo",
+    }),
+    "/custom/results.json",
+  );
+  assert.equal(
+    resolveResultFile({
+      configuredPath: undefined,
+      stateDirectory: undefined,
+      appRoot: "/workspace",
+    }),
+    "/workspace/data/browser-results.json",
+  );
 });
 
 test("requires complete exhaustive coverage of all known paths", () => {

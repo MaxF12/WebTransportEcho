@@ -4,7 +4,11 @@ import { readFile } from "node:fs/promises";
 import { X509Certificate, createHash } from "node:crypto";
 import { extname, join, resolve } from "node:path";
 
-import { browserKeyForSubmission, createResultStore } from "./result-store.mjs";
+import {
+  browserKeyForSubmission,
+  createResultStore,
+  resolveResultFile,
+} from "./result-store.mjs";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const publicRoot = resolve(join(root, "public"));
@@ -22,7 +26,11 @@ const defaultBetweenCasesMs = Number(process.env.WT_BETWEEN_CASES_MS ?? 150);
 const defaultMode = process.env.WT_DEFAULT_MODE === "exhaustive" ? "exhaustive" : "selected";
 const defaultAutorun = process.env.WT_AUTORUN === "1";
 const resultsEnabled = process.env.WT_RESULTS_ENABLED !== "0";
-const resultsFile = process.env.WT_RESULTS_FILE ?? join(root, "data", "browser-results.json");
+const resultsFile = resolveResultFile({
+  configuredPath: process.env.WT_RESULTS_FILE,
+  stateDirectory: process.env.STATE_DIRECTORY,
+  appRoot: root,
+});
 const resultsMaxChanges = boundedInteger(process.env.WT_RESULTS_MAX_CHANGES, 100, 1, 500);
 const defaultPaths = (process.env.WT_DEFAULT_PATHS ?? "")
   .split(",")
@@ -118,6 +126,11 @@ server.listen(port, host, () => {
   console.log(`Default WebTransport target: ${wtTargetBase}`);
   console.log(`WebTransport certificate SHA-256: ${certHashPayload.valueHex ?? "unavailable"}`);
   console.log(`WebTransport certificate path: ${wtTargetCert}`);
+  console.log(
+    resultsEnabled
+      ? `Anonymous browser result file: ${resultsFile}`
+      : "Anonymous browser results: disabled",
+  );
 });
 
 function writeResponseHead(res, status, headers = {}) {

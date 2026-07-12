@@ -1,0 +1,10 @@
+target/
+.venv/
+certs/
+__pycache__/
+*.pyc
+*.log
+qlogs/
+data/
+deploy/wttest.env
+.DS_Store
