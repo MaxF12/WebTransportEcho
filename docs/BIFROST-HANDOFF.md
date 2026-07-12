@@ -24,6 +24,7 @@ node as `wttest.quicast.de`.
 - Checkout: `/opt/quicast/webtransport-echo`
 - Page upstream: `127.0.0.1:8088`
 - Public page: `https://wttest.quicast.de/`
+- Browser overview: `https://wttest.quicast.de/results.html`
 - WebTransport target: `https://wttest.quicast.de:9446/wt/*`
 - Node installer: `deploy/install-node.sh`
 - Environment template: `deploy/wttest.env.example`
@@ -44,7 +45,9 @@ node as `wttest.quicast.de`.
    `deploy/install-node.sh`.
 6. Preserve an existing `/etc/quicast/wttest.env` on upgrades.
 7. Ensure Caddy certificate renewal continues to feed the supplied sync timer.
-8. Document disable and rollback commands without touching production services.
+8. Monitor the loopback `/api/browser-results` endpoint and preserve
+   `/var/lib/quicast-wttest/browser-results.json` across ordinary updates.
+9. Document disable and rollback commands without touching production services.
 
 If the repository is private, use a read-only GitHub deploy key on the node.
 Do not advertise UDP 9446 as Caddy `Alt-Svc`; browsers reach it through the
@@ -55,6 +58,11 @@ explicit WebTransport URL in `/matrix-config.json`.
 - `https://wttest.quicast.de/healthz` returns `ok` through Caddy.
 - `/matrix-config.json` names `https://wttest.quicast.de:9446` and all eight
   `/wt/*` response paths.
+- `/results.html` and `/api/browser-results` load through Caddy.
+- A complete exhaustive run updates only that browser family's latest snapshot;
+  an identical rerun adds no change entry, while a material metric change does.
+- Stored result JSON contains no raw UA, IP, target URL, platform string,
+  exception text, individual case result, or prior full snapshot.
 - The node check passes, including its verified H3 `/healthz` request,
   WebTransport CONNECT, and bidirectional stream echo.
 - `ss -lun` shows UDP 9446 owned by the aioquic service and TCP 8088 remains

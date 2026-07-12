@@ -55,7 +55,7 @@ The installer creates:
 /opt/quicast/webtransport-echo/.venv    pinned Python environment
 /etc/quicast/wttest.env                 operator-owned configuration
 /etc/quicast/wttest/                    copied certificate and private key
-/var/lib/quicast-wttest/                optional qlog/debug state
+/var/lib/quicast-wttest/                anonymous result state and optional debug state
 ```
 
 It also creates the unprivileged `quicast-wttest` account and installs these
@@ -69,6 +69,26 @@ quicast-wttest-cert-sync.timer
 ```
 
 Existing `/etc/quicast/wttest.env` configuration is retained on later runs.
+
+## Anonymous Result State
+
+`https://wttest.quicast.de/results.html` shows the latest complete exhaustive
+result for each browser family and a bounded material-change log. The page
+server writes this state atomically to:
+
+```text
+/var/lib/quicast-wttest/browser-results.json
+```
+
+Only normalized aggregate counts, browser family and major version, per-path
+state, and derived option signals are retained. Raw user agents, IP addresses,
+platform strings, target URLs, exception messages, individual cases, and prior
+full reports are discarded. Identical reruns update the latest timestamp but do
+not add a change event. The default cap is 100 change events.
+
+Only same-origin POST requests are accepted. Complete exhaustive runs against
+the configured target and all eight paths are eligible; selected, cancelled,
+incomplete, partial-path, and custom-target runs remain in the browser.
 
 ## Updating
 
@@ -120,6 +140,7 @@ Then verify externally:
 ```bash
 curl -fsS https://wttest.quicast.de/healthz
 curl -fsS https://wttest.quicast.de/matrix-config.json
+curl -fsS https://wttest.quicast.de/api/browser-results
 ```
 
 Open `https://wttest.quicast.de/?mode=exhaustive` in Chrome, Safari, and
@@ -141,6 +162,8 @@ sudo journalctl -u quicast-wttest-cert-sync -n 100 --no-pager
 - Only UDP 9446 is added to the public listener allowlist.
 - qlog and TLS secrets logging are disabled by default and must never be served
   by Caddy.
+- Browser result state is aggregate and anonymous, but it is still operational
+  state and must remain writable only by the `quicast-wttest` service account.
 - The service has no media, MoQ, multicast, or production Yggdrasil dependency.
 - A failure here must not trigger a fallback or change on any production media
   path.

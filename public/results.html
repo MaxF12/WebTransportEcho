@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebTransport Browser Results</title>
+    <link rel="stylesheet" href="/results.css" />
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <h1>WebTransport Browser Results</h1>
+        <nav class="view-nav" aria-label="WebTransport test views">
+          <a class="view-link" href="/">Run tests</a>
+          <a class="view-link" href="/results.html" aria-current="page">Browser overview</a>
+        </nav>
+      </header>
+
+      <div class="toolbar">
+        <p id="status">Loading latest browser results</p>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+
+      <section class="facts" aria-label="Result registry status">
+        <div class="fact"><span>Browsers</span><strong id="browserCount">0</strong></div>
+        <div class="fact"><span>Last result</span><strong id="lastResult">None</strong></div>
+        <div class="fact"><span>Material changes</span><strong id="changeCount">0</strong></div>
+        <div class="fact"><span>Retention</span><strong>Latest per family</strong></div>
+      </section>
+
+      <p class="privacy-note">
+        Stored results contain aggregate stage counts and option signals only. Raw user agents,
+        IP addresses, target URLs, and exception text are not retained.
+      </p>
+
+      <section class="section">
+        <h2>Latest Result By Browser</h2>
+        <p class="empty" id="latestEmpty" hidden>No complete exhaustive runs have been recorded.</p>
+        <div class="table-wrap" id="latestWrap">
+          <table class="latest-table">
+            <thead>
+              <tr>
+                <th>Browser</th>
+                <th>Received</th>
+                <th>API</th>
+                <th>Coverage</th>
+                <th>Constructor</th>
+                <th>Ready</th>
+                <th>Bidi</th>
+                <th>Uni</th>
+                <th>Datagram</th>
+                <th>Conclusion</th>
+              </tr>
+            </thead>
+            <tbody id="latestBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="pathSection" hidden>
+        <h2>Per-Path State</h2>
+        <div id="pathDetails"></div>
+      </section>
+
+      <section class="section">
+        <h2>Material Change Log</h2>
+        <p class="empty" id="changesEmpty" hidden>No material changes have been recorded.</p>
+        <div class="table-wrap" id="changesWrap">
+          <table class="changes-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Browser</th>
+                <th>Changes</th>
+              </tr>
+            </thead>
+            <tbody id="changesBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/results.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,301 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f8fb;
+  color: #17202a;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+h1,
+h2,
+h3,
+p {
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.view-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #c8d0dc;
+}
+
+.view-link {
+  padding: 8px 10px;
+  color: #4a5568;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.view-link[aria-current="page"] {
+  border-bottom: 2px solid #17202a;
+  color: #17202a;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  margin-bottom: 14px;
+}
+
+.toolbar p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 13px;
+}
+
+button {
+  min-height: 36px;
+  border: 1px solid #17202a;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #17202a;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #d8dee8;
+}
+
+.fact {
+  min-width: 0;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.fact span {
+  display: block;
+  margin-bottom: 3px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.fact strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.privacy-note,
+.empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.privacy-note {
+  margin-bottom: 22px;
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: #fff;
+  font-size: 12px;
+}
+
+.latest-table {
+  min-width: 1200px;
+}
+
+.path-table {
+  min-width: 920px;
+}
+
+.changes-table {
+  min-width: 760px;
+}
+
+th,
+td {
+  border-bottom: 1px solid #e7ebf2;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+th {
+  background: #eef2f7;
+  color: #2d3748;
+  font-weight: 650;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.good {
+  color: #0f766e;
+  font-weight: 650;
+}
+
+.warn {
+  color: #a16207;
+  font-weight: 650;
+}
+
+.bad {
+  color: #b42318;
+  font-weight: 650;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.browser-detail {
+  border-top: 1px solid #d8dee8;
+  padding: 12px 0 18px;
+}
+
+.browser-detail:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.detail-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-heading span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+@media (max-width: 780px) {
+  .page-header,
+  .toolbar,
+  .detail-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #111827;
+    color: #e5e7eb;
+  }
+
+  .view-nav {
+    border-bottom-color: #475569;
+  }
+
+  .view-link,
+  .toolbar p,
+  .privacy-note,
+  .empty,
+  .detail-heading span {
+    color: #b6c2d2;
+  }
+
+  .view-link[aria-current="page"] {
+    border-bottom-color: #e5e7eb;
+    color: #e5e7eb;
+  }
+
+  .facts {
+    border-color: #334155;
+    background: #334155;
+  }
+
+  .fact,
+  table {
+    background: #182230;
+    border-color: #334155;
+    color: #e5e7eb;
+  }
+
+  .fact span {
+    color: #94a3b8;
+  }
+
+  th {
+    background: #223047;
+    color: #e5e7eb;
+  }
+
+  td,
+  th,
+  .browser-detail {
+    border-bottom-color: #334155;
+    border-top-color: #334155;
+  }
+
+  button {
+    border-color: #94a3b8;
+    background: #e5e7eb;
+    color: #111827;
+  }
+}

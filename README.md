@@ -341,6 +341,25 @@ observed wording such as `ready only with requireUnreliable=true`; the copied
 JSON includes the browser profile, runtime config, exact options, summary, and
 all cases.
 
+## Anonymous Browser Overview
+
+Complete exhaustive runs against the page's configured target can publish an
+anonymous aggregate snapshot to `/results.html`. Sharing is enabled by default
+and can be disabled before a run or with `?publish=0`.
+
+The server retains one latest snapshot for each browser family and a bounded
+change log containing only material differences from the prior snapshot. It
+stores the browser family and major version, API availability, aggregate stage
+counts, per-path counts, and derived option signals. It does not retain raw user
+agents, IP addresses, platform strings, target URLs, exception text, individual
+case payloads, or prior full reports. Repeated results with identical behavior
+only refresh the latest timestamp and do not add a change event.
+
+Selected, cancelled, incomplete, partial-path, and custom-target runs stay
+local. The server validates the reduced schema again before writing it
+atomically to `WT_RESULTS_FILE`; the public deployment uses
+`/var/lib/quicast-wttest/browser-results.json`.
+
 Exhaustive autorun example:
 
 ```text

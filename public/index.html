@@ -24,10 +24,37 @@
       }
 
       h1 {
-        margin: 0 0 20px;
+        margin: 0;
         font-size: 28px;
         line-height: 1.1;
         letter-spacing: 0;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 20px;
+      }
+
+      .view-nav {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid #c8d0dc;
+      }
+
+      .view-link {
+        padding: 8px 10px;
+        color: #4a5568;
+        font-size: 13px;
+        font-weight: 650;
+        text-decoration: none;
+      }
+
+      .view-link[aria-current="page"] {
+        border-bottom: 2px solid #17202a;
+        color: #17202a;
       }
 
       .toolbar,
@@ -88,6 +115,29 @@
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+      }
+
+      .publish-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin: -2px 0 14px;
+      }
+
+      .publish-control {
+        display: flex;
+        grid-template-columns: none;
+        align-items: center;
+        gap: 8px;
+        color: #4a5568;
+        font-size: 12px;
+      }
+
+      .publish-row .status {
+        min-height: 0;
+        margin: 0;
+        text-align: right;
       }
 
       .capabilities,
@@ -276,6 +326,16 @@
         .grid {
           grid-template-columns: 1fr;
         }
+
+        .page-header,
+        .publish-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .publish-row .status {
+          text-align: left;
+        }
       }
 
       @media (prefers-color-scheme: dark) {
@@ -338,12 +398,32 @@
         .metric span {
           color: #94a3b8;
         }
+
+        .view-nav {
+          border-bottom-color: #475569;
+        }
+
+        .view-link,
+        .publish-control {
+          color: #b6c2d2;
+        }
+
+        .view-link[aria-current="page"] {
+          border-bottom-color: #e5e7eb;
+          color: #e5e7eb;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>WebTransport Echo Matrix</h1>
+      <header class="page-header">
+        <h1>WebTransport Echo Matrix</h1>
+        <nav class="view-nav" aria-label="WebTransport test views">
+          <a class="view-link" href="/" aria-current="page">Run tests</a>
+          <a class="view-link" href="/results.html">Browser overview</a>
+        </nav>
+      </header>
 
       <section class="toolbar">
         <label>
@@ -364,6 +444,14 @@
           <button id="stop" class="secondary" disabled>Stop</button>
           <button id="copy" class="secondary">Copy JSON</button>
         </div>
+      </section>
+
+      <section class="publish-row" aria-label="Anonymous result sharing">
+        <label class="publish-control">
+          <input id="publishResult" type="checkbox" checked />
+          Share anonymous aggregate result
+        </label>
+        <p class="status" id="publishStatus">Raw user agent, IP, errors, and target URLs are not retained.</p>
       </section>
 
       <section class="capabilities" aria-label="Browser capabilities">
@@ -549,6 +637,7 @@
         const delay = params.get("delay");
         const paths = params.get("paths");
         const variants = params.get("variants");
+        const publish = params.get("publish");
 
         if (target) {
           document.querySelector("#targetBase").value = target;
@@ -576,6 +665,10 @@
           for (const input of document.querySelectorAll('input[name="variant"]')) {
             input.checked = selectedVariants.has(input.value);
           }
+        }
+
+        if (publish === "0") {
+          document.querySelector("#publishResult").checked = false;
         }
       }
 
@@ -1381,6 +1474,111 @@
           : "";
       }
 
+      function publicationPath(path) {
+        const analyzed = report.pathAnalysis.find((item) => item.path === path);
+        const cases = report.results.filter((item) => item.path === path);
+        return {
+          path,
+          total: analyzed?.total ?? cases.length,
+          constructor: countFulfilled(cases, "constructor"),
+          ready: analyzed?.ready ?? countFulfilled(cases, "ready"),
+          bidirectionalStream:
+            analyzed?.bidirectionalStream ?? countFulfilled(cases, "bidirectionalStream"),
+          unidirectionalStream:
+            analyzed?.unidirectionalStream ?? countFulfilled(cases, "unidirectionalStream"),
+          datagram: analyzed?.datagram ?? countFulfilled(cases, "datagram"),
+          datagramUnavailable:
+            analyzed?.datagramUnavailable ??
+            cases.filter((item) => datagramUnavailable(item.datagram)).length,
+          effects: (analyzed?.effects ?? []).map((effect) => ({
+            key: effect.key,
+            withOption: effect.withOption,
+            withoutOption: effect.withoutOption,
+          })),
+        };
+      }
+
+      function publicationPayload() {
+        const summary = report.summary;
+        return {
+          schemaVersion: 1,
+          browser: {
+            name: browserProfile.name,
+            version: browserProfile.version?.split(".")[0] ?? null,
+          },
+          capabilities: {
+            secureContext: browserProfile.secureContext === true,
+            webTransport: browserProfile.webTransportConstructible === true,
+          },
+          run: {
+            mode: report.run.mode,
+            plannedCases: summary.plannedCases,
+            completedCases: summary.completedCases,
+            cancelled: report.cancelled === true,
+          },
+          metrics: {
+            constructor: summary.constructor,
+            ready: summary.ready,
+            datagram: summary.datagram,
+            datagramUnavailable: summary.datagramUnavailable,
+            bidirectionalStream: summary.bidirectionalStream,
+            unidirectionalStream: summary.unidirectionalStream,
+            streamEcho: summary.streamEcho,
+            fullEcho: summary.fullEcho,
+          },
+          paths: PATHS.map(publicationPath),
+        };
+      }
+
+      function publicationBlockReason() {
+        if (!document.querySelector("#publishResult").checked) return "Anonymous sharing is off.";
+        if (runtimeConfig?.resultsEnabled !== true) return "Shared browser overview is disabled.";
+        if (!report?.summary) return "No completed result to share.";
+        if (report.cancelled) return "Stopped runs remain local.";
+        if (report.run.mode !== "exhaustive") return "Selected runs remain local.";
+        if (!certificateMetadataMatchesTarget(report.run.targetBase)) {
+          return "Custom-target runs remain local.";
+        }
+        if (
+          report.run.paths.length !== PATHS.length ||
+          PATHS.some((path) => !report.run.paths.includes(path))
+        ) {
+          return "Partial-path runs remain local.";
+        }
+        if (
+          browserProfile.webTransportConstructible &&
+          report.summary.completedCases !== report.summary.plannedCases
+        ) {
+          return "Incomplete runs remain local.";
+        }
+        return null;
+      }
+
+      async function publishReport() {
+        const publishStatus = document.querySelector("#publishStatus");
+        const blocked = publicationBlockReason();
+        if (blocked) {
+          publishStatus.textContent = blocked;
+          return;
+        }
+
+        publishStatus.textContent = "Saving anonymous aggregate result";
+        try {
+          const response = await fetch("/api/browser-results", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(publicationPayload()),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error ?? `result publish failed: ${response.status}`);
+          publishStatus.textContent = body.changed
+            ? "Browser overview updated with a material change."
+            : "Latest browser result timestamp refreshed; behavior is unchanged.";
+        } catch (error) {
+          publishStatus.textContent = "Anonymous result was not saved: " + errorString(error);
+        }
+      }
+
       function setRunControls(running) {
         document.querySelector("#runSelected").disabled = running;
         document.querySelector("#runExhaustive").disabled = running;
@@ -1466,6 +1664,7 @@
               browserProfile.label + ": WebTransport API unavailable; no network tests started";
             renderReport();
             updateReportJson();
+            await publishReport();
             return;
           }
 
@@ -1510,6 +1709,7 @@
             : "Done: " + results.length + " cases";
           renderReport();
           updateReportJson();
+          await publishReport();
         } finally {
           setRunControls(false);
         }

@@ -25,6 +25,10 @@ done
 
 curl --fail --silent --show-error --max-time 5 "http://${PAGE_HOST:-127.0.0.1}:${PAGE_PORT:-8088}/healthz" >/dev/null ||
   fail "page health check failed"
+if [[ "${WT_RESULTS_ENABLED:-1}" == "1" ]]; then
+  curl --fail --silent --show-error --max-time 5 "http://${PAGE_HOST:-127.0.0.1}:${PAGE_PORT:-8088}/api/browser-results" >/dev/null ||
+    fail "browser results API check failed"
+fi
 
 ss -H -lun | awk -v port="${WT_LISTEN_PORT:-9446}" '
   {
