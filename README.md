@@ -490,7 +490,14 @@ Response minimization is now reduced: with constructor variant `protocols: ["qui
 
 Constructor minimization is also reduced: against `/wt/yggdrasil`, Safari succeeds with no options, `requireUnreliable`, no-pooling plus unreliable, low-latency, and the full QUICast protocol option shape. The Bifrost option cocktail is useful for production probing, but it is not the local prerequisite for `ready` once the server transport/H3 shape is accepted.
 
-Safari still reports the datagram JS streams as unavailable on this page, even though it advertises H3 datagram support in SETTINGS. Local Safari is therefore through `ready`, bidi, and uni; datagram API exposure remains a separate Safari/browser-surface issue.
+The page now supports both WebTransport datagram API generations:
+`transport.datagrams.writable` and the current
+`transport.datagrams.createWritable()` method. Earlier Safari results reported
+datagrams as unavailable because the probe only recognized the legacy
+`writable` property; those datagram results were invalid. A fresh exhaustive
+run on 2026-07-19 with Safari 26.5 on macOS 26.5.1 (25F80) passed all 128
+constructor, `ready`, datagram, bidi, uni, close, and full-echo cases across
+the eight response paths and 16 constructor-option combinations.
 
 Production Yggdrasil already advertises `RESET_STREAM_AT`, sends the WebTransport H3 settings, accepts CONNECT, and returns 200, but Safari still does not open the setup stream there. The local tokio-quiche reducer reproduced that exact post-200 stall with quiche GREASE enabled.
 
@@ -501,9 +508,17 @@ local A/B:
 cargo run --bin tokio-quiche-wt-echo -- --listen '[::]:9446'
 ```
 
-With default `grease=false`, Safari 26.5 resolves `ready` and opens bidi/uni
-streams against `/wt/yggdrasil` and `/wt/auto`. With `--grease`, Safari receives
-and ACKs the 200 response but never opens the WebTransport stream. The likely
-Yggdrasil fix to test is disabling quiche GREASE for the WebTransport endpoint,
-or at least suppressing the reserved H3 frames/unknown server uni stream before
-the CONNECT response HEADERS.
+The GREASE failure is still present in Safari 26.5 on macOS 26.5.1 (25F80).
+In a same-build, same-certificate, same-path A/B on 2026-07-19, default
+`grease=false` completed `ready`, protocol negotiation, datagram echo, bidi
+echo, uni echo, and clean close. The otherwise identical `--grease` server
+timed out at `ready`; no WebTransport stream or echo test could begin. This
+isolates the browser-side failure to the GREASE-emitting connection shape,
+not the constructor options or CONNECT response headers.
+
+The public aioquic deployment does not test this variable because that backend
+does not emit the quiche GREASE shape. Keep the tokio-quiche `--grease` /
+`--no-grease` A/B for regression checks. The likely Yggdrasil fix to test is
+disabling quiche GREASE for the WebTransport endpoint, or at least suppressing
+the reserved H3 frames/unknown server uni stream before the CONNECT response
+HEADERS.

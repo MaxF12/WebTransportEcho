@@ -1012,16 +1012,22 @@
       }
 
       async function testDatagram(transport, payload, ms) {
-        if (!transport.datagrams?.writable || !transport.datagrams?.readable) {
+        const datagrams = transport.datagrams;
+        const writable =
+          datagrams?.writable ??
+          (typeof datagrams?.createWritable === "function"
+            ? datagrams.createWritable()
+            : null);
+        if (!writable?.getWriter || !datagrams?.readable?.getReader) {
           return { ok: false, status: "not-run", detail: "datagram streams unavailable" };
         }
 
-        const writer = transport.datagrams.writable.getWriter();
+        const writer = writable.getWriter();
         const write = await capture("datagram write", writer.write(payload), ms);
         writer.releaseLock();
         if (!write.ok) return write;
 
-        const reader = transport.datagrams.readable.getReader();
+        const reader = datagrams.readable.getReader();
         const read = await capture("datagram read", reader.read(), ms);
         reader.releaseLock();
         if (!read.ok) return read;
