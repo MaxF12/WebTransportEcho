@@ -211,3 +211,125 @@ test("records API-unavailable browsers without synthetic network cases", () => {
   assert.equal(sanitized.conclusion, "WebTransport API unavailable");
   assert.equal(sanitized.paths[0].signal, "WebTransport API unavailable");
 });
+
+test("stores only normalized GREASE stages and derives the verdict", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wt-grease-store-"));
+  const filePath = join(directory, "results.json");
+  const store = createResultStore({
+    filePath,
+    clock: () => new Date("2026-07-19T12:00:00.000Z"),
+  });
+  const input = submission({
+    grease: {
+      controlBase: "https://must-not-persist.invalid:9447",
+      enabledBase: "https://must-not-persist.invalid:9448",
+      control: {
+        constructor: "pass",
+        ready: "pass",
+        datagram: "pass",
+        bidirectionalStream: "pass",
+        unidirectionalStream: "pass",
+      },
+      enabled: {
+        constructor: "pass",
+        ready: "fail",
+        datagram: "not-run",
+        bidirectionalStream: "not-run",
+        unidirectionalStream: "not-run",
+      },
+    },
+  });
+
+  try {
+    await store.load();
+    await store.record(input);
+    const latest = store.snapshot().latest[0];
+    assert.equal(latest.grease.verdict, "affected");
+    assert.deepEqual(Object.keys(latest.grease), ["control", "enabled", "verdict"]);
+    assert.doesNotMatch(await readFile(filePath, "utf8"), /must-not-persist/);
+
+    const tolerant = structuredClone(input);
+    tolerant.grease.enabled = structuredClone(tolerant.grease.control);
+    const changed = await store.record(tolerant);
+    assert.equal(changed.changed, true);
+    assert.ok(changed.differences.includes("GREASE affected -> tolerant"));
+
+    const degraded = structuredClone(tolerant);
+    degraded.grease.enabled.datagram = "fail";
+    const degradedResult = await store.record(degraded);
+    assert.equal(store.snapshot().latest[0].grease.verdict, "degraded");
+    assert.ok(degradedResult.differences.includes("GREASE tolerant -> degraded"));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects impossible GREASE stage shapes", () => {
+  const withGrease = submission({
+    grease: {
+      control: {
+        constructor: "pass",
+        ready: "pass",
+        datagram: "pass",
+        bidirectionalStream: "pass",
+        unidirectionalStream: "pass",
+      },
+      enabled: {
+        constructor: "pass",
+        ready: "fail",
+        datagram: "pass",
+        bidirectionalStream: "not-run",
+        unidirectionalStream: "not-run",
+      },
+    },
+  });
+  assert.throws(
+    () => sanitizeSubmission(withGrease, "2026-07-19T12:00:00.000Z"),
+    /echo stages must not run before ready/,
+  );
+
+  withGrease.grease.enabled.datagram = "not-run";
+  withGrease.grease.enabled.bidirectionalStream = "unavailable";
+  assert.throws(
+    () => sanitizeSubmission(withGrease, "2026-07-19T12:00:00.000Z"),
+    /bidirectionalStream cannot be unavailable/,
+  );
+});
+
+test("can require GREASE results on a configured hosted page", () => {
+  assert.throws(
+    () => sanitizeSubmission(
+      submission(),
+      "2026-07-19T12:00:00.000Z",
+      { requireGrease: true },
+    ),
+    /GREASE differential result is required/,
+  );
+
+  const withGrease = submission({
+    grease: {
+      control: {
+        constructor: "pass",
+        ready: "pass",
+        datagram: "pass",
+        bidirectionalStream: "pass",
+        unidirectionalStream: "pass",
+      },
+      enabled: {
+        constructor: "pass",
+        ready: "pass",
+        datagram: "pass",
+        bidirectionalStream: "pass",
+        unidirectionalStream: "pass",
+      },
+    },
+  });
+  assert.equal(
+    sanitizeSubmission(
+      withGrease,
+      "2026-07-19T12:00:00.000Z",
+      { requireGrease: true },
+    ).grease.verdict,
+    "tolerant",
+  );
+});

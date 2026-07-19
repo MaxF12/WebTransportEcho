@@ -39,6 +39,7 @@ function render(data) {
       latest[0].receivedAt))
     : "None";
   renderLatest(latest);
+  renderGrease(latest);
   renderPaths(latest);
   renderMatrices(latest);
   renderChanges(changes);
@@ -65,6 +66,81 @@ function renderLatest(latest) {
     appendCell(row, result.conclusion, conclusionClass(result));
     body.appendChild(row);
   }
+}
+
+function renderGrease(latest) {
+  const section = document.querySelector("#greaseSection");
+  const body = document.querySelector("#greaseBody");
+  const results = latest.filter((result) => result.grease);
+  body.replaceChildren();
+  section.hidden = results.length === 0;
+
+  for (const result of results) {
+    const row = document.createElement("tr");
+    appendCell(row, browserLabel(result.browser));
+    appendOutcome(row, result.grease.control.ready);
+    appendOutcome(row, result.grease.enabled.ready);
+    appendCell(
+      row,
+      greaseEchoText(result.grease.control),
+      greaseEchoClass(result.grease.control),
+    );
+    appendCell(
+      row,
+      greaseEchoText(result.grease.enabled),
+      greaseEchoClass(result.grease.enabled),
+    );
+    appendCell(
+      row,
+      greaseVerdictText(result.grease.verdict),
+      greaseVerdictClass(result.grease.verdict),
+    );
+    body.appendChild(row);
+  }
+}
+
+function greaseEchoText(probe) {
+  if (probe?.ready !== "pass") return "not run";
+  if (
+    probe.datagram === "pass" &&
+    probe.bidirectionalStream === "pass" &&
+    probe.unidirectionalStream === "pass"
+  ) {
+    return "full echo";
+  }
+  if (
+    probe.bidirectionalStream === "pass" &&
+    probe.unidirectionalStream === "pass"
+  ) {
+    return probe.datagram === "unavailable" ? "stream echo" : "stream echo only";
+  }
+  return "failed";
+}
+
+function greaseEchoClass(probe) {
+  const text = greaseEchoText(probe);
+  if (text === "full echo") return "good";
+  if (text === "not run") return "muted";
+  if (text.startsWith("stream echo")) return "warn";
+  return "bad";
+}
+
+function greaseVerdictText(verdict) {
+  return {
+    "api-unavailable": "API unavailable",
+    "control-failed": "Control failed",
+    affected: "Affected by GREASE",
+    degraded: "Post-ready behavior changed",
+    tolerant: "GREASE tolerated",
+  }[verdict] ?? "Not tested";
+}
+
+function greaseVerdictClass(verdict) {
+  if (verdict === "tolerant") return "good";
+  if (verdict === "affected") return "bad";
+  if (verdict === "degraded") return "warn";
+  if (verdict === "control-failed") return "warn";
+  return "muted";
 }
 
 function renderPaths(latest) {

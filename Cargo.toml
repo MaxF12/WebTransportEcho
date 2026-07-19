@@ -17,7 +17,7 @@ log = "0.4"
 quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
-tokio-quiche = { path = "../../Multicast/quiche/tokio-quiche" }
+tokio-quiche = { git = "https://github.com/QUICast/quiche.git", rev = "7484dd08a47aed4c90f67b6e1a74591334754e57" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 

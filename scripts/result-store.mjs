@@ -58,6 +58,14 @@ const COMBINATION_STAGE_KEYS = [
 ];
 
 const COMBINATION_OUTCOMES = new Set(["pass", "fail", "unavailable", "not-run"]);
+const GREASE_PROBE_KEYS = [
+  "constructor",
+  "ready",
+  "datagram",
+  "bidirectionalStream",
+  "unidirectionalStream",
+];
+const GREASE_STREAM_KEYS = ["bidirectionalStream", "unidirectionalStream"];
 
 const OPTION_LABELS = new Map([
   ["allowPooling", "allowPooling=false"],
@@ -67,7 +75,12 @@ const OPTION_LABELS = new Map([
   ["serverCertificateHashes", "serverCertificateHashes=sha-256"],
 ]);
 
-export function createResultStore({ filePath, maxChanges = 100, clock = () => new Date() }) {
+export function createResultStore({
+  filePath,
+  maxChanges = 100,
+  clock = () => new Date(),
+  requireGrease = false,
+}) {
   let state = emptyState();
   let writeQueue = Promise.resolve();
 
@@ -101,7 +114,7 @@ export function createResultStore({ filePath, maxChanges = 100, clock = () => ne
     record(input) {
       const operation = writeQueue.catch(() => {}).then(async () => {
         const receivedAt = clock().toISOString();
-        const current = sanitizeSubmission(input, receivedAt);
+        const current = sanitizeSubmission(input, receivedAt, { requireGrease });
         const previous = state.latest[current.browser.key] ?? null;
         const differences = diffSnapshots(previous, current);
         let changes = [...state.changes];
@@ -149,7 +162,7 @@ export function resolveResultFile({ configuredPath, stateDirectory, appRoot }) {
   return join(appRoot, "data", "browser-results.json");
 }
 
-export function sanitizeSubmission(input, receivedAt) {
+export function sanitizeSubmission(input, receivedAt, { requireGrease = false } = {}) {
   if (input?.schemaVersion !== RESULT_SCHEMA_VERSION) {
     throw new TypeError("unsupported result schema");
   }
@@ -162,6 +175,10 @@ export function sanitizeSubmission(input, receivedAt) {
   const run = sanitizeRun(input.run, capabilities);
   const metrics = sanitizeMetrics(input.metrics, run.completedCases);
   const paths = sanitizePaths(input.paths, run, capabilities);
+  const grease = sanitizeGrease(input.grease, capabilities);
+  if (requireGrease && grease === null) {
+    throw new TypeError("GREASE differential result is required");
+  }
 
   return {
     receivedAt,
@@ -171,6 +188,7 @@ export function sanitizeSubmission(input, receivedAt) {
     metrics,
     conclusion: conclusionFor(capabilities, metrics),
     paths,
+    grease,
   };
 }
 
@@ -330,6 +348,63 @@ function requiredCombinationOutcome(value, label) {
   return value;
 }
 
+function sanitizeGrease(input, capabilities) {
+  if (input === undefined || input === null) return null;
+  const control = sanitizeGreaseProbe(input.control, "grease.control");
+  const enabled = sanitizeGreaseProbe(input.enabled, "grease.enabled");
+
+  let verdict;
+  if (!capabilities.webTransport) {
+    if (
+      GREASE_PROBE_KEYS.some(
+        (key) => control[key] !== "not-run" || enabled[key] !== "not-run",
+      )
+    ) {
+      throw new TypeError("GREASE probes cannot run without a WebTransport API");
+    }
+    verdict = "api-unavailable";
+  } else if (control.ready !== "pass") {
+    verdict = "control-failed";
+  } else if (enabled.ready !== "pass") {
+    verdict = "affected";
+  } else if (GREASE_PROBE_KEYS.some((key) => control[key] !== enabled[key])) {
+    verdict = "degraded";
+  } else {
+    verdict = "tolerant";
+  }
+
+  return { control, enabled, verdict };
+}
+
+function sanitizeGreaseProbe(input, label) {
+  const probe = {};
+  for (const key of GREASE_PROBE_KEYS) {
+    probe[key] = requiredCombinationOutcome(input?.[key], `${label}.${key}`);
+  }
+  for (const key of ["constructor", "ready", ...GREASE_STREAM_KEYS]) {
+    if (probe[key] === "unavailable") {
+      throw new TypeError(`${label}.${key} cannot be unavailable`);
+    }
+  }
+  if (probe.constructor !== "pass" && probe.ready !== "not-run") {
+    throw new TypeError(`${label}.ready must not run when construction fails`);
+  }
+  const echoKeys = ["datagram", ...GREASE_STREAM_KEYS];
+  if (
+    probe.ready !== "pass" &&
+    echoKeys.some((key) => probe[key] !== "not-run")
+  ) {
+    throw new TypeError(`${label} echo stages must not run before ready`);
+  }
+  if (
+    probe.ready === "pass" &&
+    echoKeys.some((key) => probe[key] === "not-run")
+  ) {
+    throw new TypeError(`${label} is incomplete after ready`);
+  }
+  return probe;
+}
+
 function sanitizeEffects(input, path) {
   if (input === undefined) return [];
   if (!Array.isArray(input) || input.length > OPTION_LABELS.size) {
@@ -408,6 +483,17 @@ function diffSnapshots(previous, current) {
     if (previous.metrics[key] !== current.metrics[key]) {
       differences.push(`${label} ${previous.metrics[key]} -> ${current.metrics[key]}`);
     }
+  }
+  if (previous.grease?.verdict !== current.grease?.verdict) {
+    differences.push(
+      `GREASE ${display(previous.grease?.verdict)} -> ${display(current.grease?.verdict)}`,
+    );
+  } else if (
+    previous.grease &&
+    current.grease &&
+    JSON.stringify(previous.grease) !== JSON.stringify(current.grease)
+  ) {
+    differences.push("GREASE stage outcomes changed");
   }
 
   const previousPaths = new Map(previous.paths.map((item) => [item.path, item]));

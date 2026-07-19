@@ -318,7 +318,9 @@ async fn handle_headers(
     );
     log::debug!("raw H3 headers stream_id={stream_id}: {:?}", request.raw);
 
-    let status = if request.method.as_deref() == Some("CONNECT")
+    let is_health =
+        request.method.as_deref() == Some("GET") && request.path.as_deref() == Some("/healthz");
+    let is_webtransport = request.method.as_deref() == Some("CONNECT")
         && matches!(
             request.protocol.as_deref(),
             Some("webtransport" | "webtransport-h3")
@@ -326,8 +328,8 @@ async fn handle_headers(
         && request
             .path
             .as_deref()
-            .is_some_and(|path| path.starts_with("/wt"))
-    {
+            .is_some_and(|path| path.starts_with("/wt"));
+    let status = if is_health || is_webtransport {
         200
     } else {
         404
@@ -343,6 +345,13 @@ async fn handle_headers(
     send.send(OutboundFrame::Headers(response, None))
         .await
         .map_err(|error| anyhow!("sending response headers: {error}"))?;
+
+    if is_health {
+        send.send(OutboundFrame::Body(Bytes::from_static(b"ok\n"), true))
+            .await
+            .map_err(|error| anyhow!("sending health response body: {error}"))?;
+        return Ok(());
+    }
 
     if status != 200 {
         send.send(OutboundFrame::Body(Bytes::new(), true))

@@ -60,24 +60,55 @@ else
   log "Keeping existing ${ENV_FILE}"
 fi
 
+set -a
+# shellcheck source=/dev/null
+source "${ENV_FILE}"
+set +a
+
+grease_enabled="${WT_GREASE_DIFFERENTIAL:-1}"
+if [[ "${grease_enabled}" == "1" ]]; then
+  for command in cargo cmake; do
+    command -v "${command}" >/dev/null 2>&1 ||
+      fail "missing tokio-quiche build dependency: ${command}"
+  done
+  log "Building pinned tokio-quiche GREASE backend"
+  cargo build \
+    --locked \
+    --release \
+    --manifest-path "${SOURCE_ROOT}/Cargo.toml" \
+    --bin tokio-quiche-wt-echo
+fi
+
 log "Installing systemd units"
 for unit in "${SOURCE_ROOT}"/deploy/systemd/*; do
   install -m 0644 "${unit}" "/etc/systemd/system/$(basename "${unit}")"
 done
 systemctl daemon-reload
 systemctl enable quicast-wttest-page.service quicast-wttest-h3.service >/dev/null
+if [[ "${grease_enabled}" == "1" ]]; then
+  systemctl enable \
+    quicast-wttest-quiche@control.service \
+    quicast-wttest-quiche@grease.service >/dev/null
+else
+  systemctl disable --now \
+    quicast-wttest-quiche@control.service \
+    quicast-wttest-quiche@grease.service >/dev/null 2>&1 || true
+fi
 systemctl enable --now quicast-wttest-cert-sync.timer >/dev/null
 systemctl restart quicast-wttest-page.service
 systemctl start quicast-wttest-cert-sync.service
 
-set -a
-# shellcheck source=/dev/null
-source "${ENV_FILE}"
-set +a
 if [[ -f "${WT_CERT:-}" && -f "${WT_KEY:-}" ]]; then
-  systemctl restart quicast-wttest-h3.service
+  services=(quicast-wttest-h3.service)
+  if [[ "${grease_enabled}" == "1" ]]; then
+    services+=(
+      quicast-wttest-quiche@control.service
+      quicast-wttest-quiche@grease.service
+    )
+  fi
+  systemctl restart "${services[@]}"
 else
-  log "The WebTransport service is enabled but waiting for its certificate"
+  log "The WebTransport services are enabled but waiting for their certificate"
   log "Install the Caddy vhost, then run: systemctl start quicast-wttest-cert-sync.service"
 fi
 
@@ -86,4 +117,8 @@ log "Deployed Git commit ${commit}"
 printf 'Config: %s\n' "${ENV_FILE}"
 printf 'Page:   systemctl status quicast-wttest-page.service\n'
 printf 'H3:     systemctl status quicast-wttest-h3.service\n'
+if [[ "${grease_enabled}" == "1" ]]; then
+  printf 'Control: systemctl status quicast-wttest-quiche@control.service\n'
+  printf 'GREASE: systemctl status quicast-wttest-quiche@grease.service\n'
+fi
 printf 'Check:  %s\n' "${APP_ROOT}/deploy/check-node.sh"

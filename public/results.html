@@ -30,8 +30,8 @@
 
       <p class="privacy-note">
         Stored results contain aggregate stage counts, normalized option-combination outcomes,
-        and option signals only. Raw user agents, IP addresses, target URLs, and exception text
-        are not retained.
+        option signals, and normalized GREASE differential stages only. Raw user agents, IP
+        addresses, target URLs, and exception text are not retained.
       </p>
 
       <section class="section">
@@ -54,6 +54,25 @@
               </tr>
             </thead>
             <tbody id="latestBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="greaseSection" hidden>
+        <h2>HTTP/3 GREASE Differential</h2>
+        <div class="table-wrap">
+          <table class="grease-table">
+            <thead>
+              <tr>
+                <th>Browser</th>
+                <th>GREASE off ready</th>
+                <th>GREASE on ready</th>
+                <th>GREASE off echo</th>
+                <th>GREASE on echo</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="greaseBody"></tbody>
           </table>
         </div>
       </section>

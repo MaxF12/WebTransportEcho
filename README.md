@@ -85,11 +85,11 @@ There are two intentionally separate modes.
 
 ### quiche / tokio-quiche Backend
 
-The secondary backend uses the local checkout at
-`../../Multicast/quiche/tokio-quiche`. It is intended to sit between the
-working aioquic oracle and production Yggdrasil: same scratch page and response
-variants, but quiche/tokio-quiche transport, H3, WebTransport session
-registration, and response-flush behavior.
+The secondary backend pins the public QUICast quiche fork and exact revision in
+`Cargo.toml`/`Cargo.lock`. It is intended to sit between the working aioquic
+oracle and production Yggdrasil: same scratch page and response variants, but
+quiche/tokio-quiche transport, H3, WebTransport session registration, and
+response-flush behavior.
 
 Run it on a separate port:
 
@@ -351,11 +351,13 @@ The server retains one latest snapshot for each browser family and a bounded
 change log containing only material differences from the prior snapshot. It
 stores the browser family and major version, API availability, aggregate stage
 counts, per-path counts, derived option signals, and the normalized stage
-outcome for every exhaustive option combination. The overview renders that
-matrix per browser and response path. It does not retain raw user agents, IP
-addresses, platform strings, target URLs, exception text, individual case
-payloads, or prior full reports. Repeated results with identical behavior only
-refresh the latest timestamp and do not add a change event.
+outcome for every exhaustive option combination. When configured, it also
+stores only the normalized stages and derived verdict from the GREASE
+control/test pair. The overview renders both matrices. It does not retain raw
+user agents, IP addresses, platform strings, target URLs, exception text,
+individual case payloads, or prior full reports. Repeated results with
+identical behavior only refresh the latest timestamp and do not add a change
+event.
 
 Selected, cancelled, incomplete, partial-path, and custom-target runs stay
 local. The server validates the reduced schema again before writing it
@@ -382,9 +384,10 @@ to its loopback TCP listener.
 The isolated `wttest.quicast.de` layout and environment example are in
 [`docs/wttest-deployment.md`](docs/wttest-deployment.md) and
 [`deploy/wttest.env.example`](deploy/wttest.env.example). The recommended split
-keeps the page on HTTPS/TCP 443 and sends WebTransport directly to the scratch
-backend on UDP 9446, avoiding a collision with an existing Caddy HTTP/3 listener
-on UDP 443. No Bifrost or production files are changed by this repository.
+keeps the page on HTTPS/TCP 443, sends the exhaustive aioquic baseline to UDP
+9446, and runs matched tokio-quiche GREASE-off/on probes on UDP 9447/9448.
+This avoids a collision with an existing Caddy HTTP/3 listener on UDP 443. No
+Bifrost or production files are changed by this repository.
 
 Deploy the repository on the selected node with:
 
@@ -394,11 +397,11 @@ sudo git clone git@github.com:MaxF12/WebTransportEcho.git \
 sudo /opt/quicast/webtransport-echo/deploy/install-node.sh
 ```
 
-The Git checkout uses pinned aioquic 1.3.0, installs isolated systemd services,
-synchronizes a public Caddy certificate without exposing Caddy's private data
-tree to the runtime, and includes a real H3 health probe. The probe also opens
-a WebTransport session and verifies datagram and bidirectional echoes. Later
-deploys are a fast-forward pull followed by another idempotent
+The Git checkout uses pinned aioquic 1.3.0 and a pinned public QUICast quiche
+revision, installs isolated systemd services, synchronizes a public Caddy
+certificate without exposing Caddy's private data tree to the runtime, and
+health-checks all three H3 backends with WebTransport datagram and bidi echoes.
+Later deploys are a fast-forward pull followed by another idempotent
 `deploy/install-node.sh` run.
 The copy/paste integration brief is
 [`docs/BIFROST-HANDOFF.md`](docs/BIFROST-HANDOFF.md).
@@ -516,9 +519,10 @@ timed out at `ready`; no WebTransport stream or echo test could begin. This
 isolates the browser-side failure to the GREASE-emitting connection shape,
 not the constructor options or CONNECT response headers.
 
-The public aioquic deployment does not test this variable because that backend
-does not emit the quiche GREASE shape. Keep the tokio-quiche `--grease` /
-`--no-grease` A/B for regression checks. The likely Yggdrasil fix to test is
+The hosted deployment keeps aioquic as the ordinary 128-case oracle and appends
+one forced non-pooled tokio-quiche `--no-grease` / `--grease` differential.
+Its control/test stages and derived verdict are shown separately and stored
+without target URLs or exception text. The likely Yggdrasil fix to test is
 disabling quiche GREASE for the WebTransport endpoint, or at least suppressing
 the reserved H3 frames/unknown server uni stream before the CONNECT response
 HEADERS.

@@ -217,6 +217,7 @@
       }
 
       .summary[hidden],
+      .grease-result[hidden],
       .analysis[hidden],
       .environment-note[hidden] {
         display: none;
@@ -460,6 +461,7 @@
         <div class="fact"><span>WebTransport API</span><strong id="webTransportApi">Detecting</strong></div>
         <div class="fact"><span>Exhaustive set</span><strong id="combinationCount">Calculating</strong></div>
         <div class="fact"><span>Selected paths</span><strong id="pathCount">0</strong></div>
+        <div class="fact"><span>GREASE A/B</span><strong id="greaseAvailability">Loading</strong></div>
       </section>
 
       <p class="status cert-info" id="certInfo">Loading certificate mode</p>
@@ -479,6 +481,12 @@
       <section class="summary" id="summary" hidden>
         <p class="conclusion" id="conclusion"></p>
         <div class="summary-metrics" id="summaryMetrics"></div>
+      </section>
+
+      <section class="grease-result" id="greaseResult" hidden>
+        <h2>HTTP/3 GREASE Differential</h2>
+        <p class="conclusion" id="greaseConclusion"></p>
+        <div class="summary-metrics" id="greaseMetrics"></div>
       </section>
 
       <section class="analysis" id="analysis" hidden>
@@ -604,6 +612,25 @@
           options.serverCertificateHashes = "auto";
         },
       };
+
+      const GREASE_PROBE_VARIANT = {
+        id: "grease-probe",
+        name: "non-pooled protocol quicast-wt-v0",
+        options: {
+          allowPooling: false,
+          requireUnreliable: true,
+          congestionControl: "low-latency",
+          protocols: ["quicast-wt-v0"],
+        },
+        optionKeys: ["allowPooling", "requireUnreliable", "congestionControl", "protocols"],
+      };
+      const GREASE_STAGE_KEYS = [
+        "constructor",
+        "ready",
+        "datagram",
+        "bidirectionalStream",
+        "unidirectionalStream",
+      ];
 
       const enc = new TextEncoder();
       const dec = new TextDecoder();
@@ -807,6 +834,16 @@
           "webTransportApi",
           browserProfile.webTransportConstructible ? "available" : "unavailable",
           browserProfile.webTransportConstructible ? "ok" : "bad",
+        );
+      }
+
+      function renderGreaseAvailability() {
+        const configured = runtimeConfig?.greaseDifferential !== null &&
+          typeof runtimeConfig?.greaseDifferential === "object";
+        setFact(
+          "greaseAvailability",
+          configured ? "configured" : "not configured",
+          configured ? "ok" : "skip",
         );
       }
 
@@ -1474,6 +1511,74 @@
         }
       }
 
+      function greaseEchoText(result) {
+        if (!result?.ready?.ok) return "not run";
+        if (
+          result.datagram?.ok &&
+          result.bidirectionalStream?.ok &&
+          result.unidirectionalStream?.ok
+        ) {
+          return "full echo";
+        }
+        if (result.bidirectionalStream?.ok && result.unidirectionalStream?.ok) {
+          return datagramUnavailable(result.datagram) ? "stream echo" : "stream echo only";
+        }
+        return "failed";
+      }
+
+      function greaseVerdict(differential) {
+        if (!browserProfile?.webTransportConstructible) return "api-unavailable";
+        if (!differential?.control || !differential?.enabled) return "not-run";
+        if (!differential.control.ready?.ok) return "control-failed";
+        if (!differential.enabled.ready?.ok) return "affected";
+        const control = publicationGreaseProbe(differential.control);
+        const enabled = publicationGreaseProbe(differential.enabled);
+        if (GREASE_STAGE_KEYS.some((key) => control[key] !== enabled[key])) {
+          return "degraded";
+        }
+        return "tolerant";
+      }
+
+      function greaseVerdictText(verdict) {
+        return {
+          "api-unavailable": "WebTransport API unavailable",
+          "not-run": "Not run",
+          "control-failed": "Control failed",
+          affected: "Affected by GREASE",
+          degraded: "Post-ready behavior changed under GREASE",
+          tolerant: "GREASE tolerated",
+        }[verdict] ?? verdict;
+      }
+
+      function renderGreaseReport() {
+        const section = document.querySelector("#greaseResult");
+        const differential = report?.greaseDifferential;
+        section.hidden = !differential;
+        if (!differential) return;
+
+        document.querySelector("#greaseConclusion").textContent =
+          greaseVerdictText(differential.verdict);
+        const metrics = [
+          ["GREASE off ready", summarize(differential.control?.ready) || "not run"],
+          ["GREASE on ready", summarize(differential.enabled?.ready) || "not run"],
+          ["GREASE off echo", greaseEchoText(differential.control)],
+          ["GREASE on echo", greaseEchoText(differential.enabled)],
+          ["Verdict", greaseVerdictText(differential.verdict)],
+        ];
+        const root = document.querySelector("#greaseMetrics");
+        root.replaceChildren();
+        for (const [label, value] of metrics) {
+          const metric = document.createElement("div");
+          metric.className = "metric";
+          const labelNode = document.createElement("span");
+          labelNode.textContent = label;
+          const valueNode = document.createElement("strong");
+          valueNode.textContent = value;
+          metric.append(labelNode, valueNode);
+          root.appendChild(metric);
+        }
+      }
+
       function updateReportJson() {
         document.querySelector("#json").value = report
           ? JSON.stringify(report, null, 2)
@@ -1528,6 +1633,26 @@
         return "fail";
       }
 
+      function publicationGreaseProbe(result) {
+        return {
+          constructor: publicationStage(result?.constructor),
+          ready: publicationStage(result?.ready),
+          datagram: datagramUnavailable(result?.datagram)
+            ? "unavailable"
+            : publicationStage(result?.datagram),
+          bidirectionalStream: publicationStage(result?.bidirectionalStream),
+          unidirectionalStream: publicationStage(result?.unidirectionalStream),
+        };
+      }
+
+      function publicationGreaseDifferential() {
+        if (!report.greaseDifferential) return null;
+        return {
+          control: publicationGreaseProbe(report.greaseDifferential.control),
+          enabled: publicationGreaseProbe(report.greaseDifferential.enabled),
+        };
+      }
+
       function publicationPayload() {
         const summary = report.summary;
         return {
@@ -1557,6 +1682,7 @@
             fullEcho: summary.fullEcho,
           },
           paths: PATHS.map(publicationPath),
+          grease: publicationGreaseDifferential(),
         };
       }
 
@@ -1582,6 +1708,70 @@
           return "Incomplete runs remain local.";
         }
         return null;
+      }
+
+      function configuredGreaseDifferential(targetBase) {
+        if (!certificateMetadataMatchesTarget(targetBase)) return null;
+        const configured = runtimeConfig?.greaseDifferential;
+        if (
+          !configured ||
+          typeof configured.controlBase !== "string" ||
+          typeof configured.enabledBase !== "string"
+        ) {
+          return null;
+        }
+        return {
+          controlBase: configured.controlBase.replace(/\/$/, ""),
+          enabledBase: configured.enabledBase.replace(/\/$/, ""),
+          path: typeof configured.path === "string" ? configured.path : "/wt/yggdrasil",
+          timeoutMs: Number.isFinite(configured.timeoutMs)
+            ? configured.timeoutMs
+            : Number(document.querySelector("#timeoutMs").value || 5000),
+        };
+      }
+
+      async function runGreaseDifferential(targetBase, status) {
+        const configured = configuredGreaseDifferential(targetBase);
+        if (!configured) return null;
+
+        const differential = {
+          configured,
+          variant: {
+            id: GREASE_PROBE_VARIANT.id,
+            name: GREASE_PROBE_VARIANT.name,
+            optionKeys: GREASE_PROBE_VARIANT.optionKeys,
+            options: displayOptions(GREASE_PROBE_VARIANT.options),
+          },
+          control: null,
+          enabled: null,
+          verdict: "not-run",
+        };
+        if (!browserProfile.webTransportConstructible || cancelRequested) {
+          differential.verdict = greaseVerdict(differential);
+          return differential;
+        }
+
+        status.textContent = "Running GREASE differential: control";
+        differential.control = await runOne(
+          configured.controlBase,
+          configured.path,
+          GREASE_PROBE_VARIANT,
+          configured.timeoutMs,
+        );
+        if (cancelRequested) {
+          differential.verdict = greaseVerdict(differential);
+          return differential;
+        }
+
+        status.textContent = "Running GREASE differential: enabled";
+        differential.enabled = await runOne(
+          configured.enabledBase,
+          configured.path,
+          GREASE_PROBE_VARIANT,
+          configured.timeoutMs,
+        );
+        differential.verdict = greaseVerdict(differential);
+        return differential;
       }
 
       async function publishReport() {
@@ -1657,6 +1847,7 @@
         cancelRequested = false;
         document.querySelector("#tbody").innerHTML = "";
         document.querySelector("#summary").hidden = true;
+        document.querySelector("#greaseResult").hidden = true;
         document.querySelector("#analysis").hidden = true;
         report = {
           generatedAt: new Date().toISOString(),
@@ -1681,6 +1872,7 @@
           cancelled: false,
           summary: null,
           pathAnalysis: [],
+          greaseDifferential: null,
           results,
         };
         setRunControls(true);
@@ -1689,10 +1881,12 @@
         try {
           if (!browserProfile.webTransportConstructible) {
             report.summary = summarizeResults(results, plannedCases, base);
+            report.greaseDifferential = await runGreaseDifferential(base, status);
             report.finishedAt = new Date().toISOString();
             status.textContent =
               browserProfile.label + ": WebTransport API unavailable; no network tests started";
             renderReport();
+            renderGreaseReport();
             updateReportJson();
             await publishReport();
             return;
@@ -1724,7 +1918,6 @@
           }
 
           report.cancelled = cancelRequested;
-          report.finishedAt = new Date().toISOString();
           report.summary = summarizeResults(results, plannedCases, base);
           if (runMode === "exhaustive" && !cancelRequested) {
             const axes = variants.some(
@@ -1734,10 +1927,18 @@
               : [...EXHAUSTIVE_AXES];
             report.pathAnalysis = analyzePaths(results, axes);
           }
+          if (!cancelRequested) {
+            report.greaseDifferential = await runGreaseDifferential(base, status);
+          }
+          report.finishedAt = new Date().toISOString();
           status.textContent = cancelRequested
             ? "Stopped after " + results.length + "/" + plannedCases + " cases"
-            : "Done: " + results.length + " cases";
+            : "Done: " +
+              results.length +
+              " cases" +
+              (report.greaseDifferential ? " + GREASE A/B" : "");
           renderReport();
+          renderGreaseReport();
           updateReportJson();
           await publishReport();
         } finally {
@@ -1771,6 +1972,7 @@
               input.checked = configuredPaths.has(input.value);
             }
           }
+          renderGreaseAvailability();
           return runtimeConfig;
         } catch (error) {
           console.debug("Runtime config unavailable", error);
@@ -1781,6 +1983,7 @@
       async function initialize() {
         renderChecks();
         await loadRuntimeConfig();
+        renderGreaseAvailability();
         applyQueryDefaults();
         browserProfile = await detectBrowserProfile();
         renderBrowserProfile();

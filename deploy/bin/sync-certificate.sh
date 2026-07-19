@@ -89,9 +89,14 @@ mv -f "${key_temp}" "${WT_KEY}"
 trap - EXIT
 
 log "synchronized ${WT_CERT_HOST} certificate"
-if systemctl is-enabled --quiet quicast-wttest-h3.service; then
-  systemctl restart quicast-wttest-h3.service
-fi
+for service in \
+  quicast-wttest-h3.service \
+  quicast-wttest-quiche@control.service \
+  quicast-wttest-quiche@grease.service; do
+  if systemctl is-enabled --quiet "${service}"; then
+    systemctl restart "${service}"
+  fi
+done
 if systemctl is-active --quiet quicast-wttest-page.service; then
   systemctl restart quicast-wttest-page.service
 fi

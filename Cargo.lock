@@ -508,6 +508,7 @@ dependencies = [
 [[package]]
 name = "datagram-socket"
 version = "0.8.0"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 dependencies = [
  "bytes",
  "futures-util",
@@ -1640,6 +1641,7 @@ dependencies = [
 [[package]]
 name = "octets"
 version = "0.3.5"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 
 [[package]]
 name = "once_cell"
@@ -1928,6 +1930,7 @@ dependencies = [
 [[package]]
 name = "qlog"
 version = "0.17.0"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 dependencies = [
  "humantime",
  "serde",
@@ -1953,6 +1956,7 @@ dependencies = [
 [[package]]
 name = "quiche"
 version = "0.28.0"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 dependencies = [
  "boring",
  "bytes",
@@ -2589,6 +2593,7 @@ checksum = "f764005d11ee5f36500a149ace24e00e3da98b0158b3e2d53a7495660d3f4d60"
 [[package]]
 name = "task-killswitch"
 version = "0.2.1"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 dependencies = [
  "dashmap",
  "parking_lot",
@@ -2748,6 +2753,7 @@ dependencies = [
 [[package]]
 name = "tokio-quiche"
 version = "0.18.0"
+source = "git+https://github.com/QUICast/quiche.git?rev=7484dd08a47aed4c90f67b6e1a74591334754e57#7484dd08a47aed4c90f67b6e1a74591334754e57"
 dependencies = [
  "anyhow",
  "boring",

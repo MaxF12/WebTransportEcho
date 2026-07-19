@@ -21,6 +21,19 @@ const host = process.env.PAGE_HOST ?? "localhost";
 const pageTls = process.env.PAGE_TLS !== "0";
 const publicOrigin = (process.env.PAGE_PUBLIC_ORIGIN ?? `https://localhost:${port}`).replace(/\/$/, "");
 const wtTargetBase = process.env.WT_TARGET_BASE ?? "https://localhost:9443";
+const greaseControlBase = optionalString(process.env.WT_GREASE_CONTROL_BASE);
+const greaseEnabledBase = optionalString(process.env.WT_GREASE_ENABLED_BASE);
+if ((greaseControlBase === null) !== (greaseEnabledBase === null)) {
+  throw new Error("WT_GREASE_CONTROL_BASE and WT_GREASE_ENABLED_BASE must be configured together");
+}
+const greaseDifferential = greaseControlBase === null
+  ? null
+  : {
+      controlBase: greaseControlBase,
+      enabledBase: greaseEnabledBase,
+      path: process.env.WT_GREASE_PATH ?? "/wt/yggdrasil",
+      timeoutMs: Number(process.env.WT_GREASE_TIMEOUT_MS ?? 5000),
+    };
 const defaultTimeoutMs = Number(process.env.WT_DEFAULT_TIMEOUT_MS ?? 5000);
 const defaultBetweenCasesMs = Number(process.env.WT_BETWEEN_CASES_MS ?? 150);
 const defaultMode = process.env.WT_DEFAULT_MODE === "exhaustive" ? "exhaustive" : "selected";
@@ -40,7 +53,11 @@ const certPem = pageTls ? await readFile(cert, "utf8") : null;
 const keyPem = pageTls ? await readFile(key) : null;
 const certHashPayload = await targetCertificatePayload(wtTargetCert);
 const securityHeaders = buildSecurityHeaders(indexHtml);
-const resultStore = createResultStore({ filePath: resultsFile, maxChanges: resultsMaxChanges });
+const resultStore = createResultStore({
+  filePath: resultsFile,
+  maxChanges: resultsMaxChanges,
+  requireGrease: greaseDifferential !== null,
+});
 if (resultsEnabled) await resultStore.load();
 const lastSubmissionAt = new Map();
 
@@ -81,6 +98,7 @@ const requestHandler = async (req, res) => {
           defaultMode,
           autorun: defaultAutorun,
           resultsEnabled,
+          greaseDifferential,
         }),
       );
       return;
@@ -124,6 +142,11 @@ const server = pageTls
 server.listen(port, host, () => {
   console.log(`Test page: ${publicOrigin}/`);
   console.log(`Default WebTransport target: ${wtTargetBase}`);
+  console.log(
+    greaseDifferential
+      ? `GREASE differential: ${greaseDifferential.controlBase} -> ${greaseDifferential.enabledBase}`
+      : "GREASE differential: disabled",
+  );
   console.log(`WebTransport certificate SHA-256: ${certHashPayload.valueHex ?? "unavailable"}`);
   console.log(`WebTransport certificate path: ${wtTargetCert}`);
   console.log(
@@ -132,6 +155,11 @@ server.listen(port, host, () => {
       : "Anonymous browser results: disabled",
   );
 });
+
+function optionalString(value) {
+  const normalized = String(value ?? "").trim().replace(/\/$/, "");
+  return normalized.length > 0 ? normalized : null;
+}
 
 function writeResponseHead(res, status, headers = {}) {
   res.writeHead(status, { ...securityHeaders, ...headers });
