@@ -158,6 +158,11 @@ response paths, or 128 sequential aioquic cases, followed by one non-pooled
 tokio-quiche control/GREASE pair. Keep `WT_AUTORUN=0` on the public host so
 merely loading the page cannot generate the full matrix.
 
+The page exposes a **Run GREASE A/B** checkbox and accepts `?grease=1` or
+`?grease=0`. The checkbox controls the per-run probe only; it does not restart
+either backend. GREASE-disabled exhaustive runs stay local and do not replace
+the stored GREASE-aware snapshot for that browser.
+
 Useful logs:
 
 ```bash

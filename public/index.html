@@ -125,6 +125,12 @@
         margin: -2px 0 14px;
       }
 
+      .run-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
       .publish-control {
         display: flex;
         grid-template-columns: none;
@@ -447,11 +453,17 @@
         </div>
       </section>
 
-      <section class="publish-row" aria-label="Anonymous result sharing">
-        <label class="publish-control">
-          <input id="publishResult" type="checkbox" checked />
-          Share anonymous aggregate result
-        </label>
+      <section class="publish-row" aria-label="Run and sharing options">
+        <div class="run-options">
+          <label class="publish-control">
+            <input id="runGrease" type="checkbox" checked />
+            Run GREASE A/B
+          </label>
+          <label class="publish-control">
+            <input id="publishResult" type="checkbox" checked />
+            Share anonymous aggregate result
+          </label>
+        </div>
         <p class="status" id="publishStatus">Raw user agent, IP, errors, and target URLs are not retained.</p>
       </section>
 
@@ -665,6 +677,7 @@
         const paths = params.get("paths");
         const variants = params.get("variants");
         const publish = params.get("publish");
+        const grease = params.get("grease");
 
         if (target) {
           document.querySelector("#targetBase").value = target;
@@ -696,6 +709,12 @@
 
         if (publish === "0") {
           document.querySelector("#publishResult").checked = false;
+        }
+
+        if (grease === "0") {
+          document.querySelector("#runGrease").checked = false;
+        } else if (grease === "1" && greaseConfigured()) {
+          document.querySelector("#runGrease").checked = true;
         }
       }
 
@@ -837,13 +856,21 @@
         );
       }
 
-      function renderGreaseAvailability() {
-        const configured = runtimeConfig?.greaseDifferential !== null &&
+      function greaseConfigured() {
+        return runtimeConfig?.greaseDifferential !== null &&
           typeof runtimeConfig?.greaseDifferential === "object";
+      }
+
+      function renderGreaseAvailability() {
+        const configured = greaseConfigured();
+        const control = document.querySelector("#runGrease");
+        control.disabled = !configured;
+        if (!configured) control.checked = false;
+        const enabled = configured && control.checked;
         setFact(
           "greaseAvailability",
-          configured ? "configured" : "not configured",
-          configured ? "ok" : "skip",
+          configured ? (enabled ? "enabled" : "disabled") : "not configured",
+          enabled ? "ok" : "skip",
         );
       }
 
@@ -1692,6 +1719,12 @@
         if (!report?.summary) return "No completed result to share.";
         if (report.cancelled) return "Stopped runs remain local.";
         if (report.run.mode !== "exhaustive") return "Selected runs remain local.";
+        if (greaseConfigured() && report.run.greaseDifferential !== true) {
+          return "GREASE A/B was disabled; this exhaustive run remains local.";
+        }
+        if (greaseConfigured() && !report.greaseDifferential) {
+          return "GREASE A/B did not complete; this exhaustive run remains local.";
+        }
         if (!certificateMetadataMatchesTarget(report.run.targetBase)) {
           return "Custom-target runs remain local.";
         }
@@ -1731,6 +1764,7 @@
       }
 
       async function runGreaseDifferential(targetBase, status) {
+        if (report?.run?.greaseDifferential !== true) return null;
         const configured = configuredGreaseDifferential(targetBase);
         if (!configured) return null;
 
@@ -1803,6 +1837,7 @@
         document.querySelector("#runSelected").disabled = running;
         document.querySelector("#runExhaustive").disabled = running;
         document.querySelector("#stop").disabled = !running;
+        document.querySelector("#runGrease").disabled = running || !greaseConfigured();
       }
 
       async function runMatrix(mode) {
@@ -1812,6 +1847,7 @@
         const delayMs = Math.max(0, Number(document.querySelector("#delayMs").value || 0));
         const paths = selected("path");
         const runMode = mode === "exhaustive" ? "exhaustive" : "selected";
+        const runGrease = greaseConfigured() && document.querySelector("#runGrease").checked;
 
         if (!browserProfile) {
           browserProfile = await detectBrowserProfile();
@@ -1862,6 +1898,7 @@
             betweenCasesMs: delayMs,
             paths,
             plannedCases,
+            greaseDifferential: runGrease,
             constructorVariants: variants.map((variant) => ({
               id: variant.id,
               name: variant.name,
@@ -1983,8 +2020,8 @@
       async function initialize() {
         renderChecks();
         await loadRuntimeConfig();
-        renderGreaseAvailability();
         applyQueryDefaults();
+        renderGreaseAvailability();
         browserProfile = await detectBrowserProfile();
         renderBrowserProfile();
 
@@ -2031,6 +2068,13 @@
       });
       document.querySelector("#paths").addEventListener("change", updatePlannedCount);
       document.querySelector("#targetBase").addEventListener("input", renderEnvironmentDiagnostic);
+      document.querySelector("#runGrease").addEventListener("change", () => {
+        renderGreaseAvailability();
+        document.querySelector("#publishStatus").textContent =
+          document.querySelector("#runGrease").checked
+            ? "Raw user agent, IP, errors, and target URLs are not retained."
+            : "GREASE A/B is off; exhaustive results from this run remain local.";
+      });
       initialize().catch((error) => {
         document.querySelector("#status").textContent = errorString(error);
         setRunControls(false);

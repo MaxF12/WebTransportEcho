@@ -526,3 +526,9 @@ without target URLs or exception text. The likely Yggdrasil fix to test is
 disabling quiche GREASE for the WebTransport endpoint, or at least suppressing
 the reserved H3 frames/unknown server uni stream before the CONNECT response
 HEADERS.
+
+The **Run GREASE A/B** checkbox controls whether that differential is appended
+to a browser run. It defaults on when both hosted targets are configured and
+can also be set with `?grease=1` or `?grease=0`. An exhaustive run with the
+differential switched off remains local so it cannot replace a stored
+GREASE-aware browser snapshot.
